@@ -1,4 +1,4 @@
-package com.example.tracefocus
+package com.example.focustrace
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge

@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TraceFocus"
+rootProject.name = "FocusTrace"
 include(":app")

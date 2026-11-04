@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.tracefocus"
+    namespace = "com.example.focustrace"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.tracefocus"
+        applicationId = "com.example.focustrace"
         minSdk = 35
         targetSdk = 37
         versionCode = 1
