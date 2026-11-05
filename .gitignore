@@ -1,11 +1,6 @@
 # Android Studio / IntelliJ IDEA
 *.iml
-/.idea/caches/
-/.idea/libraries/
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+/.idea/
 
 # Gradle
 .gradle/
@@ -30,3 +25,10 @@ local.properties
 # Temporary Files
 *.log
 *~
+
+# Kotlin
+.kotlin/
+
+# Secrets
+*.jks
+*.keystore
