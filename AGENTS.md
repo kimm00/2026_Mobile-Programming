@@ -22,6 +22,3 @@ Before coding, read `docs/schema.md` (data) or `DESIGN.md` (UI) when relevant.
 - Allowed: AndroidX, Material 3, Room, WorkManager, Firebase Auth, Firebase AI Logic, MPAndroidChart, CameraX. Ask before adding others.
 - Never commit or print keys, tokens, or passwords.
 
-## Workflow
-- State planned changes and files first. Keep changes small; don't touch unrelated code. Make sure it builds.
-- Follow the Git rules in `README.md`.
