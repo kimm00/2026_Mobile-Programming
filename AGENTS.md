@@ -22,3 +22,18 @@ Before coding, read `docs/schema.md` (data) or `DESIGN.md` (UI) when relevant.
 - Allowed: AndroidX, Material 3, Room, WorkManager, Firebase Auth, Firebase AI Logic, MPAndroidChart, CameraX. Ask before adding others.
 - Never commit or print keys, tokens, or passwords.
 
+## Features
+Prompts refer to these IDs. Build only the feature the prompt names.
+- F-01 Prepare & session: subject, target time, one-line plan → START; ongoing notification with remaining time; no pause
+- F-02 Detection: unlock + app usage → `CHECK` / `ALLOWED_ONLY` / `UNLOCK_ONLY` (rules below)
+- F-03 Allow List: user picks study apps; recorded but not counted
+- F-04 Early Stop: reason + optional memo
+- F-05 Wrap-up & Report: session result, Focus Timeline, reflection; daily/weekly/monthly stats (MPAndroidChart)
+- F-06 AI Insight: Gemini via Firebase AI Logic, rule-based fallback, home recommendation card
+- F-08 Completion photo (CameraX) + share intent
+- F-09 Weekly Report (WorkManager) — stretch goal
+- F-10 App Widget: start session, remaining time, today's phone checks
+- F-11 Vibration on each stretch — stretch goal
+- F-12 Stretching mission: 10 arm stretches with the accelerometer, skippable
+- F-13 Refocus alert: same non-allowed app over 3 min → one notification
+- F-14 Quick Settings tile: start a session
