@@ -17,28 +17,26 @@ import java.util.Locale
 import kotlin.math.sqrt
 
 /**
- * T7 스트레칭 미션 사전 검증 Activity
- *
- * 60초 제한시간 내 팔 뻗기(가속도 -> 0.5초 홀드 -> 접기) 10회 감지 테스트.
- * 후보 B (FSM 기반 알고리즘) 적용.
+ * T7 prototype for stretch detection using an FSM.
+ * Detects 10 repetitions within a 60-second mission.
  */
 class StretchTestActivity : Activity(), SensorEventListener {
 
-    // 미션 진행 상태
+    // Mission progress states
     enum class MissionState {
-        NOT_STARTED, // 시작 전
-        IN_PROGRESS, // 진행 중
-        SUCCESS,     // 성공 (60초 내 10회 달성)
-        FAILED       // 실패 (60초 초과)
+        NOT_STARTED, // Before mission starts
+        IN_PROGRESS, // Mission in progress
+        SUCCESS,     // Completed 10 repetitions within 60 seconds
+        FAILED       // Time limit exceeded
     }
 
-    // FSM 상태 (후보 B 알고리즘)
+    // FSM states (Candidate B algorithm)
     enum class FsmState {
-        IDLE,          // 동작 대기
-        EXTENDING,     // 팔 뻗는 중 (가속도 >= 3.0 m/s²)
-        EXTENDED_HOLD, // 팔 뻗은 상태 유지 (가속도 < 1.5 m/s² 500ms 이상)
-        RETRACTING,    // 팔 접는 중 (홀드 후 새로운 움직임 감지)
-        COOLDOWN       // 중복 카운트 방지 불응기
+        IDLE,          // Waiting for movement
+        EXTENDING,     // Extending arm (acceleration >= 3.0 m/s²)
+        EXTENDED_HOLD, // Holding extended position (acceleration < 1.5 m/s² for 500 ms)
+        RETRACTING,    // Retracting arm (movement detected after hold)
+        COOLDOWN       // Preventing duplicate counts
     }
 
     private lateinit var sensorManager: SensorManager
@@ -47,38 +45,38 @@ class StretchTestActivity : Activity(), SensorEventListener {
     private lateinit var startButton: Button
     private lateinit var resetButton: Button
 
-    // 미션 및 센서 제어 변수
+    // Mission and sensor control variables
     private var missionState = MissionState.NOT_STARTED
     private var fsmState = FsmState.IDLE
     private var count = 0
     private val targetCount = 10
 
-    // 시간 관련 변수 (SystemClock.elapsedRealtime 기준)
-    private val totalTimeMs = 60000L // 60초
+    // Timing variables (based on SystemClock.elapsedRealtime)
+    private val totalTimeMs = 60000L // 60 seconds
     private var endTime = 0L
     private var savedRemainingMs = totalTimeMs
 
-    // FSM 타임스탬프 및 조건 변수
+    // FSM timestamps and condition flags
     private var extendingStartTime = 0L
     private var holdStartTime = 0L
     private var holdConditionMet = false
     private var cooldownStartTime = 0L
 
-    // 센서 임계값 정의
-    private val highThreshold = 3.0f   // 뻗기 감지 임계값 (m/s²)
-    private val lowThreshold = 1.5f    // 홀드 안정 상태 임계값 (m/s²)
-    private val retractThreshold = 2.0f// 접기 감지 임계값 (m/s²)
-    private val holdDurationMs = 500L  // 홀드 유지 필요 시간 (ms)
-    private val cooldownMs = 600L      // 중복 방지 쿨다운 (ms)
-    private val stateTimeoutMs = 2500L // FSM 상태 타임아웃 (ms)
+    // Sensor thresholds
+    private val highThreshold = 3.0f   // Extension detection threshold (m/s²)
+    private val lowThreshold = 1.5f    // Stable hold threshold (m/s²)
+    private val retractThreshold = 2.0f // Retraction detection threshold (m/s²)
+    private val holdDurationMs = 500L  // Required hold duration (ms)
+    private val cooldownMs = 600L      // Cooldown to prevent duplicate counts (ms)
+    private val stateTimeoutMs = 2500L // FSM state timeout (ms)
 
-    // 메인 스레드 타이머 핸들러
+    // Main-thread timer handler
     private val handler = Handler(Looper.getMainLooper())
     private val updateTimerRunnable = object : Runnable {
         override fun run() {
             checkTimerAndUpdateUi()
             if (missionState == MissionState.IN_PROGRESS) {
-                handler.postDelayed(this, 100L) // 100ms 마다 UI 및 시간 체킹
+                handler.postDelayed(this, 100L)  // Check time and update UI every 100 ms
             }
         }
     }
@@ -86,7 +84,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Activity 재생성 시 상태 복원
+        // Restore mission progress after Activity recreation
         if (savedInstanceState != null) {
             count = savedInstanceState.getInt("count", 0)
             missionState = MissionState.valueOf(
@@ -98,7 +96,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
             savedRemainingMs = savedInstanceState.getLong("remaining_ms", totalTimeMs)
 
             if (missionState == MissionState.IN_PROGRESS) {
-                // 남은 시간을 기준으로 종료 시점 재계산
+                // Recalculate the end time based on the remaining time
                 endTime = SystemClock.elapsedRealtime() + savedRemainingMs
             }
         }
@@ -109,7 +107,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
     }
 
     /**
-     * UI 레이아웃 동적 생성
+     * Create the UI layout programmatically.
      */
     private fun setupLayout() {
         val rootLayout = LinearLayout(this).apply {
@@ -199,7 +197,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
     }
 
     /**
-     * 미션 시작 처리
+     * Start the mission.
      */
     private fun startMission() {
         if (missionState == MissionState.IN_PROGRESS) return
@@ -219,7 +217,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
     }
 
     /**
-     * 미션 리셋 처리
+     * Reset the mission.
      */
     private fun resetMission() {
         handler.removeCallbacks(updateTimerRunnable)
@@ -234,7 +232,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
     }
 
     /**
-     * 타이머 만료 여부 확인 및 UI 갱신
+     * Check timer expiration and update the UI.
      */
     private fun checkTimerAndUpdateUi() {
         if (missionState != MissionState.IN_PROGRESS) return
@@ -255,7 +253,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
     }
 
     /**
-     * 미션 성공 처리
+     * Handle mission success.
      */
     private fun triggerSuccess() {
         missionState = MissionState.SUCCESS
@@ -265,7 +263,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
     }
 
     /**
-     * 미션 실패 처리
+     * Handle mission failure.
      */
     private fun triggerFail() {
         missionState = MissionState.FAILED
@@ -282,9 +280,9 @@ class StretchTestActivity : Activity(), SensorEventListener {
         val magnitude = sqrt(x * x + y * y + z * z)
         val now = SystemClock.elapsedRealtime()
 
-        // 미션 진행 중일 때만 센서 FSM 및 카운트 동작 수행
+        // Process sensor events and count repetitions only during an active mission
         if (missionState == MissionState.IN_PROGRESS) {
-            // 제한 시간 만료 체크
+            // Check whether the time limit has expired
             if (now >= endTime) {
                 if (count >= targetCount) triggerSuccess() else triggerFail()
                 return
@@ -293,7 +291,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
             processFsm(magnitude, now)
         }
 
-        // 실시간 가속도 및 상태 표시 업데이트
+        // Update real-time acceleration and mission status
         val remainingMs = if (missionState == MissionState.IN_PROGRESS) {
             (endTime - now).coerceAtLeast(0L)
         } else {
@@ -302,13 +300,11 @@ class StretchTestActivity : Activity(), SensorEventListener {
         updateUi(remainingMs, magnitude)
     }
 
-    /**
-     * FSM (후보 B) 스트레칭 동작 감지 로직
-     */
+    // Detect a stretch through movement, hold, and return phases
     private fun processFsm(magnitude: Float, now: Long) {
         when (fsmState) {
             FsmState.IDLE -> {
-                // 1. 뻗기 시작: 가속도가 3.0 m/s² 이상일 때 EXTENDING 전환
+                // 1. Start extension: switch to EXTENDING when acceleration reaches 3.0 m/s²
                 if (magnitude >= highThreshold) {
                     fsmState = FsmState.EXTENDING
                     extendingStartTime = now
@@ -316,43 +312,44 @@ class StretchTestActivity : Activity(), SensorEventListener {
             }
 
             FsmState.EXTENDING -> {
-                // 2. 뻗은 후 정지: 가속도가 1.5 m/s² 미만으로 감소 시 EXTENDED_HOLD 전환
+                // 2. After extension: switch to EXTENDED_HOLD when acceleration drops below 1.5 m/s²
                 if (magnitude < lowThreshold) {
                     fsmState = FsmState.EXTENDED_HOLD
                     holdStartTime = now
                     holdConditionMet = false
                 } else if (now - extendingStartTime > stateTimeoutMs) {
-                    // 타임아웃 리셋
+                    // Reset on timeout
                     fsmState = FsmState.IDLE
                 }
             }
 
             FsmState.EXTENDED_HOLD -> {
-                // 3. 0.5초 홀드 감지: 가속도가 계속 1.5 m/s² 미만으로 유지되는지 검사
+
+                // 3. Detect a 0.5-second hold: check whether acceleration remains below 1.5 m/s²
                 if (magnitude < lowThreshold) {
                     if (now - holdStartTime >= holdDurationMs) {
                         holdConditionMet = true
                     }
                 }
 
-                // 0.5초 홀드 충족 후 팔을 접는 움직임 (가속도 >= 2.0 m/s²) 감지 시 RETRACTING 전환
+                // After the 0.5-second hold, switch to RETRACTING when acceleration reaches 2.0 m/s²
                 if (holdConditionMet && magnitude >= retractThreshold) {
                     fsmState = FsmState.RETRACTING
                     onArmStretchCompleted()
                 } else if (now - holdStartTime > stateTimeoutMs) {
-                    // 타임아웃 리셋
+                    // Reset on timeout
                     fsmState = FsmState.IDLE
                 }
             }
 
             FsmState.RETRACTING -> {
-                // 팔 접는 동작 완료 후 쿨다운으로 전환
+                // Switch to COOLDOWN after detecting the retraction movement
                 fsmState = FsmState.COOLDOWN
                 cooldownStartTime = now
             }
 
             FsmState.COOLDOWN -> {
-                // 4. 중복 카운트 방지: 쿨다운 시간(600ms) 경과 후 가속도가 안정화되면 IDLE 복귀
+                // 4. Prevent duplicate counts: return to IDLE after 600 ms when acceleration stabilizes
                 if ((now - cooldownStartTime >= cooldownMs) && magnitude < lowThreshold) {
                     fsmState = FsmState.IDLE
                 }
@@ -361,7 +358,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
     }
 
     /**
-     * 팔 뻗기 1회 완료 시 호출
+     * Called when one arm stretch repetition is completed.
      */
     private fun onArmStretchCompleted() {
         count++
@@ -371,7 +368,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
     }
 
     /**
-     * UI 업데이트
+     * Update the UI.
      */
     private fun updateUi(remainingMs: Long, currentMagnitude: Float = 0.0f) {
         timerText.text = formatTime(remainingMs)
@@ -401,7 +398,7 @@ class StretchTestActivity : Activity(), SensorEventListener {
     }
 
     /**
-     * milliseconds -> mm:ss 포맷 변환
+     * Convert milliseconds to mm:ss format.
      */
     private fun formatTime(ms: Long): String {
         val totalSeconds = (ms / 1000).toInt()
