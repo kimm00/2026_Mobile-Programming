@@ -1,9 +1,9 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.TraceFocus" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Base.Theme.FocusTrace" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
 
-    <style name="Theme.TraceFocus" parent="Base.Theme.TraceFocus" />
+    <style name="Theme.FocusTrace" parent="Base.Theme.FocusTrace" />
 </resources>
