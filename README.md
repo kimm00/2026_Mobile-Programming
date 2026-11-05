@@ -223,17 +223,9 @@ Format: `type(scope): description`
 
 ### Individual Agent Logs
 
-- Each member writes a weekly log in `docs/agent-logs/<name>/agent-log-wN.md`.
+- Each member writes and submits their own weekly agent log. Logs are not stored in this repository.
 - Record agent use per feature: goal, key prompts (in the language you used), and why each prompt worked or didn't.
-- Edit only your own folder. Never copy a teammate's log.
+- Never copy a teammate's log.
 
-| Log | Due |
-|---|---|
-| `agent-log-w1.md` | 11/13 |
-| `agent-log-w2.md` | 11/20 |
-| `agent-log-w3.md` | 11/27 |
-| `agent-log-w4.md` | 12/4 |
-
----
 
 **FocusTrace — See when your focus breaks.**
