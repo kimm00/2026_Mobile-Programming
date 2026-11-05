@@ -1,4 +1,4 @@
-package com.example.tracefocus
+package com.example.focustrace
 
 import org.junit.Test
 
