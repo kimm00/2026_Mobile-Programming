@@ -71,18 +71,18 @@ Users can review when their focus was interrupted, understand their usage patter
 **Prepare → Focus Session → Wrap-up (or Early Stop) → Report**
 
 **Prepare**  
-Set the subject, target time, study plan, and verification photo.
+Set the subject, target time, and a one-line study plan.
 
 **Focus Session**  
 Tracking begins only when the user starts the session. A foreground service keeps running and shows the remaining time in a notification. Phone unlocks and app usage are recorded.
 
-**Early Stop**
+**Early Stop**  
 If the user ends the session early, they choose a reason and can add a memo.
 
 **Wrap-up**  
 Review the Focus Timeline and session results, add a reflection, and optionally take a completion photo and share the result.
 
-**Report**
+**Report**  
 Review daily, weekly, and monthly statistics with AI insights.
 
 ---
@@ -116,8 +116,8 @@ Review daily, weekly, and monthly statistics with AI insights.
 
 ## Team Roles
 
-### A. Detection & Session - 김병찬
--- Foreground Service and ongoing notification (remaining time)
+### A. Detection & Session — 김병찬
+- Foreground Service and ongoing notification (remaining time)
 - Unlock detection (`USER_PRESENT` receiver) and app-usage classification (UsageEvents)
 - Allow List
 - Refocus notification
