@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var tvLogView: TextView
     private lateinit var scrollViewLog: ScrollView
+    private lateinit var btnTogglePolling: Button
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -47,6 +48,9 @@ class MainActivity : AppCompatActivity() {
 
         tvLogView = findViewById(R.id.tvLogView)
         scrollViewLog = findViewById(R.id.scrollViewLog)
+        btnTogglePolling = findViewById(R.id.btnTogglePolling)
+
+        updatePollingButtonText()
 
         findViewById<Button>(R.id.btnUsageStats).setOnClickListener {
             UsageStatsHelper.openUsageStatsSettings(this)
@@ -76,6 +80,13 @@ class MainActivity : AppCompatActivity() {
             loadLogAndScrollToBottom()
         }
 
+        btnTogglePolling.setOnClickListener {
+            val isEnabled = FocusService.toggleRefocusPolling(this)
+            updatePollingButtonText()
+            Toast.makeText(this, "Refocus Polling ${if (isEnabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+            loadLogAndScrollToBottom()
+        }
+
         findViewById<Button>(R.id.btnRefreshLog).setOnClickListener {
             loadLogAndScrollToBottom()
         }
@@ -93,7 +104,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        updatePollingButtonText()
         loadLogAndScrollToBottom()
+    }
+
+    private fun updatePollingButtonText() {
+        btnTogglePolling.text = if (FocusService.isRefocusCheckEnabled) "Polling: ON" else "Polling: OFF"
     }
 
     private fun loadLogAndScrollToBottom() {

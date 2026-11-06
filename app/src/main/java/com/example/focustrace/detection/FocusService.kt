@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -39,6 +40,12 @@ class FocusService : Service() {
 
     var episodeSink: EpisodeSink = LogcatEpisodeSink()
     private var allowedApps: Set<String> = emptySet()
+    private var batteryJob: Job? = null
+
+    private var refocusJob: Job? = null
+    private val seenEvents = mutableSetOf<RawUsageEvent>()
+    private var refocusCheckCount: Int = 0
+    private lateinit var refocusTracker: RefocusTracker
 
     private lateinit var episodeAnalyzer: EpisodeAnalyzer
 
@@ -51,10 +58,17 @@ class FocusService : Service() {
                 Intent.ACTION_USER_PRESENT -> {
                     lastUnlockTimeMs = now
                     Log.d(TAG, "USER_PRESENT received at $lastUnlockTimeMs")
+                    TestLogger.log(applicationContext, "UNLOCK (USER_PRESENT) at $lastUnlockTimeMs")
+                    refocusTracker.onUnlock(lastUnlockTimeMs)
+                    startRefocusLoop()
                 }
                 Intent.ACTION_SCREEN_OFF -> {
+                    stopRefocusLoop()
+                    refocusTracker.onScreenOff()
+
                     if (lastUnlockTimeMs == 0L) {
                         Log.d(TAG, "SCREEN_OFF ignored (no prior unlock recorded)")
+                        TestLogger.log(applicationContext, "SCREEN_OFF ignored (no prior unlock recorded)")
                         return
                     }
 
@@ -65,6 +79,7 @@ class FocusService : Service() {
                     lastUnlockTimeMs = 0L
 
                     Log.d(TAG, "SCREEN_OFF received at $screenOffT. Scheduling analysis in 1.5s.")
+                    TestLogger.log(applicationContext, "SCREEN_OFF at $screenOffT (unlock was at $unlockT)")
 
                     serviceScope.launch {
                         delay(ANALYSIS_DELAY_MS)
@@ -77,12 +92,35 @@ class FocusService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        serviceInstance = this
+        episodeSink = FileEpisodeSink(applicationContext)
+
         val currentTime = System.currentTimeMillis()
         lastUnlockTimeMs = currentTime
 
         val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
         val resolvedHome = packageManager.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
         homePackageName = resolvedHome?.activityInfo?.packageName
+
+        val testAllowedApps = setOf(
+            "com.google.android.calculator",
+            "com.sec.android.app.popupcalculator",
+            "com.android.calculator2",
+            "com.google.android.deskclock",
+            "com.sec.android.app.clockpackage",
+            "com.android.deskclock"
+        )
+        val excludedApps = setOf(
+            packageName,
+            homePackageName ?: "",
+            "com.android.systemui"
+        )
+
+        refocusTracker = RefocusTracker(
+            refocusLimitMs = REFOCUS_LIMIT_MS,
+            allowedApps = testAllowedApps,
+            excludedApps = excludedApps
+        )
 
         episodeAnalyzer = EpisodeAnalyzer(
             thisPackageName = packageName,
@@ -109,6 +147,12 @@ class FocusService : Service() {
                 isSessionStartEpisode = true
 
                 registerScreenReceiver()
+                TestLogger.log(applicationContext, "SERVICE_START at $lastUnlockTimeMs")
+                startBatteryLogging()
+
+                refocusTracker.onUnlock(lastUnlockTimeMs)
+                startRefocusLoop()
+
                 Log.d(TAG, "FocusService started. Unlock time initialized to $lastUnlockTimeMs")
             }
             ACTION_STOP_SESSION -> {
@@ -117,6 +161,110 @@ class FocusService : Service() {
         }
 
         return START_STICKY
+    }
+
+    private fun startRefocusLoop() {
+        if (!isRefocusCheckEnabled) return
+        refocusJob?.cancel()
+        refocusJob = serviceScope.launch {
+            while (true) {
+                delay(REFOCUS_CHECK_INTERVAL_MS)
+                performRefocusCheck()
+            }
+        }
+    }
+
+    private fun stopRefocusLoop() {
+        refocusJob?.cancel()
+        refocusJob = null
+    }
+
+    private fun performRefocusCheck() {
+        val startCheckMs = System.currentTimeMillis()
+        val startTime = (startCheckMs - 20_000L).coerceAtLeast(0L)
+        val rawEvents = UsageStatsHelper.queryActivityResumedEvents(
+            context = applicationContext,
+            startTimeMs = startTime,
+            endTimeMs = startCheckMs
+        )
+
+        val newEvents = rawEvents.filter { seenEvents.add(it) }
+        val alert = refocusTracker.processEvents(newEvents, startCheckMs)
+
+        val endCheckMs = System.currentTimeMillis()
+        val checkDurationMs = endCheckMs - startCheckMs
+        refocusCheckCount++
+
+        TestLogger.log(applicationContext, "REFOCUS_CHECK took ${checkDurationMs}ms")
+
+        if (alert != null) {
+            TestLogger.log(
+                applicationContext,
+                "REFOCUS_ALERT: app=${alert.packageName}, duration=${alert.durationMs}ms"
+            )
+            showRefocusNotification(alert.packageName, alert.durationMs)
+        }
+    }
+
+    private fun showRefocusNotification(packageNameStr: String, durationMs: Long) {
+        val appName = try {
+            val appInfo = packageManager.getApplicationInfo(packageNameStr, 0)
+            packageManager.getApplicationLabel(appInfo).toString()
+        } catch (_: Exception) {
+            packageNameStr
+        }
+
+        val durationMin = (durationMs / 60000L).coerceAtLeast(1L)
+        val contentText = "You've been on $appName for $durationMin min."
+
+        val notificationIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, notificationIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(this, REFOCUS_CHANNEL_ID)
+            .setContentTitle("Back to focus?")
+            .setContentText(contentText)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(Notification.DEFAULT_ALL)
+            .build()
+
+        val manager = getSystemService(NotificationManager::class.java)
+        manager?.notify(REFOCUS_NOTIFICATION_ID, notification)
+    }
+
+    private fun startBatteryLogging() {
+        batteryJob?.cancel()
+        batteryJob = serviceScope.launch {
+            while (true) {
+                logBatteryLevel()
+                delay(60_000L)
+            }
+        }
+    }
+
+    private fun stopBatteryLogging() {
+        batteryJob?.cancel()
+        batteryJob = null
+    }
+
+    private fun logBatteryLevel() {
+        try {
+            val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            val batteryStatus = registerReceiver(null, filter)
+            val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            val pct = if (scale > 0) (level * 100 / scale) else -1
+            val checks = refocusCheckCount
+            refocusCheckCount = 0
+            TestLogger.log(applicationContext, "BATTERY_LEVEL: $pct% ($level/$scale) | refocus_checks: $checks")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to read battery level", e)
+        }
     }
 
     private fun registerScreenReceiver() {
@@ -172,17 +320,26 @@ class FocusService : Service() {
             episodeSink.onEpisode(result)
         } else {
             Log.d(TAG, "Episode skipped (shouldSave = false)")
+            TestLogger.log(applicationContext, "EPISODE SKIPPED (shouldSave = false)")
         }
     }
 
     private fun stopSessionInternal() {
+        stopRefocusLoop()
+        refocusTracker.onScreenOff()
+        stopBatteryLogging()
         unregisterScreenReceiver()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+        TestLogger.log(applicationContext, "SERVICE_STOP")
         Log.d(TAG, "FocusService stopped.")
     }
 
     override fun onDestroy() {
+        serviceInstance = null
+        stopRefocusLoop()
+        refocusTracker.onScreenOff()
+        stopBatteryLogging()
         unregisterScreenReceiver()
         serviceJob.cancel()
         super.onDestroy()
@@ -192,6 +349,8 @@ class FocusService : Service() {
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(NotificationManager::class.java)
+
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Focus Trace Session Channel",
@@ -199,8 +358,16 @@ class FocusService : Service() {
             ).apply {
                 description = "Ongoing notification for phone usage detection during focus sessions"
             }
-            val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)
+
+            val refocusChannel = NotificationChannel(
+                REFOCUS_CHANNEL_ID,
+                "FocusTrace Refocus Channel",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "High priority alert notifications when user stays on non-allowed apps for too long"
+            }
+            manager?.createNotificationChannel(refocusChannel)
         }
     }
 
@@ -225,8 +392,20 @@ class FocusService : Service() {
         const val ACTION_START_SESSION = "com.example.focustrace.action.START_SESSION"
         const val ACTION_STOP_SESSION = "com.example.focustrace.action.STOP_SESSION"
 
+        const val REFOCUS_LIMIT_MS = 3 * 60 * 1000L
+        
+        @Volatile
+        var isRefocusCheckEnabled: Boolean = true
+
+        @Volatile
+        private var serviceInstance: FocusService? = null
+
+        private const val REFOCUS_CHECK_INTERVAL_MS = 15_000L
+
         private const val CHANNEL_ID = "focus_trace_service_channel"
+        private const val REFOCUS_CHANNEL_ID = "focus_trace_refocus_channel"
         private const val NOTIFICATION_ID = 1001
+        private const val REFOCUS_NOTIFICATION_ID = 1002
         private const val ANALYSIS_DELAY_MS = 1500L
         private const val TAG = "FocusTrace_Service"
 
@@ -242,6 +421,21 @@ class FocusService : Service() {
                 action = ACTION_STOP_SESSION
             }
             context.startService(intent)
+        }
+
+        fun toggleRefocusPolling(context: Context): Boolean {
+            val newState = !isRefocusCheckEnabled
+            isRefocusCheckEnabled = newState
+            TestLogger.log(context, "REFOCUS_POLLING_TOGGLE: ${if (newState) "ENABLED (ON)" else "DISABLED (OFF)"}")
+            val instance = serviceInstance
+            if (instance != null) {
+                if (newState) {
+                    instance.startRefocusLoop()
+                } else {
+                    instance.stopRefocusLoop()
+                }
+            }
+            return newState
         }
     }
 }
