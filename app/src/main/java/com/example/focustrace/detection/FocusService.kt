@@ -45,6 +45,8 @@ class FocusService : Service() {
     private var refocusJob: Job? = null
     private val seenEvents = mutableSetOf<RawUsageEvent>()
     private var refocusCheckCount: Int = 0
+    private var totalEventsSinceUnlock: Int = 0
+    private var warningLoggedForCurrentUnlock: Boolean = false
     private lateinit var refocusTracker: RefocusTracker
 
     private lateinit var episodeAnalyzer: EpisodeAnalyzer
@@ -57,8 +59,11 @@ class FocusService : Service() {
             when (action) {
                 Intent.ACTION_USER_PRESENT -> {
                     lastUnlockTimeMs = now
+                    totalEventsSinceUnlock = 0
+                    warningLoggedForCurrentUnlock = false
                     Log.d(TAG, "USER_PRESENT received at $lastUnlockTimeMs")
                     TestLogger.log(applicationContext, "UNLOCK (USER_PRESENT) at $lastUnlockTimeMs")
+                    seenEvents.clear()
                     refocusTracker.onUnlock(lastUnlockTimeMs)
                     startRefocusLoop()
                 }
@@ -145,15 +150,21 @@ class FocusService : Service() {
 
                 lastUnlockTimeMs = System.currentTimeMillis()
                 isSessionStartEpisode = true
+                totalEventsSinceUnlock = 0
+                warningLoggedForCurrentUnlock = false
 
                 registerScreenReceiver()
-                TestLogger.log(applicationContext, "SERVICE_START at $lastUnlockTimeMs")
+                
+                val hasUsageAccess = UsageStatsHelper.hasUsageStatsPermission(applicationContext)
+                TestLogger.log(applicationContext, "SERVICE_START at $lastUnlockTimeMs | USAGE_ACCESS_PERMISSION: $hasUsageAccess")
+                
                 startBatteryLogging()
 
+                seenEvents.clear()
                 refocusTracker.onUnlock(lastUnlockTimeMs)
                 startRefocusLoop()
 
-                Log.d(TAG, "FocusService started. Unlock time initialized to $lastUnlockTimeMs")
+                Log.d(TAG, "FocusService started. Unlock time initialized to $lastUnlockTimeMs, usage access=$hasUsageAccess")
             }
             ACTION_STOP_SESSION -> {
                 stopSessionInternal()
@@ -181,12 +192,30 @@ class FocusService : Service() {
 
     private fun performRefocusCheck() {
         val startCheckMs = System.currentTimeMillis()
-        val startTime = (startCheckMs - 20_000L).coerceAtLeast(0L)
+        val startTime = (startCheckMs - 20_000L)
+            .coerceAtLeast(lastUnlockTimeMs - 1000L)
+            .coerceAtLeast(0L)
+
         val rawEvents = UsageStatsHelper.queryActivityResumedEvents(
             context = applicationContext,
             startTimeMs = startTime,
             endTimeMs = startCheckMs
         )
+
+        totalEventsSinceUnlock += rawEvents.size
+
+        if (totalEventsSinceUnlock == 0 &&
+            !warningLoggedForCurrentUnlock &&
+            lastUnlockTimeMs != 0L &&
+            (startCheckMs - lastUnlockTimeMs) > 30_000L
+        ) {
+            warningLoggedForCurrentUnlock = true
+            val unlockedSec = (startCheckMs - lastUnlockTimeMs) / 1000L
+            TestLogger.log(
+                applicationContext,
+                "WARNING: 0 usage events received since unlock (${unlockedSec}s unlocked, usage access may be disabled)"
+            )
+        }
 
         val newEvents = rawEvents.filter { seenEvents.add(it) }
         val alert = refocusTracker.processEvents(newEvents, startCheckMs)
@@ -297,7 +326,8 @@ class FocusService : Service() {
     private fun performEpisodeAnalysis(
         unlockTimeMs: Long,
         screenOffTimeMs: Long,
-        isStartEpisode: Boolean
+        isStartEpisode: Boolean,
+        isEndEpisode: Boolean = false
     ) {
         val startTime = (unlockTimeMs - 1000L).coerceAtLeast(0L)
         val rawEvents = UsageStatsHelper.queryActivityResumedEvents(
@@ -312,7 +342,7 @@ class FocusService : Service() {
             rawEvents = rawEvents,
             allowedApps = allowedApps,
             isSessionStartEpisode = isStartEpisode,
-            isSessionEndEpisode = false
+            isSessionEndEpisode = isEndEpisode
         )
 
         val result = episodeAnalyzer.analyze(input)
@@ -325,6 +355,23 @@ class FocusService : Service() {
     }
 
     private fun stopSessionInternal() {
+        if (lastUnlockTimeMs != 0L) {
+            val unlockT = lastUnlockTimeMs
+            val stopT = System.currentTimeMillis()
+            val startEpisodeFlag = isSessionStartEpisode
+            isSessionStartEpisode = false
+            lastUnlockTimeMs = 0L
+
+            Log.d(TAG, "SERVICE_STOP analyzing open episode from $unlockT to $stopT")
+            TestLogger.log(applicationContext, "SERVICE_STOP analyzing open episode (unlock was at $unlockT, stop at $stopT)")
+            performEpisodeAnalysis(
+                unlockTimeMs = unlockT,
+                screenOffTimeMs = stopT,
+                isStartEpisode = startEpisodeFlag,
+                isEndEpisode = true
+            )
+        }
+
         stopRefocusLoop()
         refocusTracker.onScreenOff()
         stopBatteryLogging()
