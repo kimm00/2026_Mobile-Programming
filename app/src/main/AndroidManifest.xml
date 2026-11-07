@@ -36,7 +36,8 @@
             android:exported="false" />
         <activity
             android:name=".ui.EarlyStopActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ui.FinishActivity"
             android:exported="false" />
