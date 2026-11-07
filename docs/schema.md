@@ -29,6 +29,9 @@ erDiagram
         String stopMemo "nullable"
         String reflection "nullable"
         String photoUri "nullable"
+        Int suggestedMinutes "nullable"
+        Boolean acceptedAiSuggestion
+        Boolean isSample
         Long focusMs
         Long phoneUseMs
         Int checkCount
@@ -71,6 +74,7 @@ erDiagram
         Long id PK
         Long sessionId FK
         Long startedAt
+        Long endedAt "nullable"
         Int targetReps
         Int doneReps
         String result
@@ -99,11 +103,14 @@ erDiagram
 | `goalMinutes` | Int | |
 | `startAt` | Long | |
 | `endAt` | Long? | null while running |
-| `status` | String | `RUNNING` / `COMPLETED` / `EARLY_STOP` / `INTERRUPTED` |
-| `stopReason` | String? | Early Stop reason code (B) |
+| `status` | String | `RUNNING` / `COMPLETED` / `EARLY_STOP` / `UNFINISHED` |
+| `stopReason` | String? | `DISTRACTED` / `TIRED` / `INTERRUPTED` / `TASK_COMPLETED` / `OTHER` |
 | `stopMemo` | String? | |
 | `reflection` | String? | wrap-up note |
 | `photoUri` | String? | app-private storage (C) |
+| `suggestedMinutes` | Int? | AI-suggested length; null if AI suggestion not used |
+| `acceptedAiSuggestion` | Boolean | whether the user accepted the AI suggestion |
+| `isSample` | Boolean | demo sample data, kept separate from real stats |
 | `focusMs` | Long | summary, set by `endSession()` |
 | `phoneUseMs` | Long | summary |
 | `checkCount` | Int | summary |
@@ -158,6 +165,7 @@ Summary columns stay 0 while `RUNNING`. For live values of a running session (e.
 | `id` | Long PK auto | |
 | `sessionId` | Long FK | |
 | `startedAt` | Long | |
+| `endedAt` | Long? | null until finished |
 | `targetReps` | Int | default 10 |
 | `doneReps` | Int | |
 | `result` | String | `COMPLETED` / `SKIPPED` / `FAILED` |
@@ -189,11 +197,11 @@ AI consent is a setting (DataStore), not a table.
 ## Session API (track A)
 | Function | Purpose |
 | --- | --- |
-| `startSession(subject, plan, goalMinutes)` → `sessionId` | insert session, start `FocusService` |
-| `endSession(sessionId, status, stopReason?, stopMemo?)` | stop service, close open episode, write summary |
+| `startSession(subject, plan, goalMinutes, suggestedMinutes = null, acceptedAiSuggestion = false)` → `sessionId` | insert session, start `FocusService` |
+| `endSession(sessionId, status, stopReason: StopReason?, stopMemo?)` | stop service, close open episode, write summary |
 | `observeRunningSession()` → `Flow<Session?>` | running session or null |
 | `observeSession(sessionId)` → `Flow<SessionDetail>` | session + episodes + app usages |
 | `getAllowedApps()` / `setAllowed(packageName, allowed)` | allow list |
-| `recoverInterruptedSessions()` | on app start, close `RUNNING` sessions as `INTERRUPTED` |
+| `recoverUnfinishedSessions()` | on app start, close `RUNNING` sessions as `UNFINISHED` |
 
-Report queries (track B) may live in a separate DAO.
+Report queries (track B) may live in a separate DAO. Exclude `isSample = 1` rows from real stats.
