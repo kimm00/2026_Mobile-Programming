@@ -149,7 +149,8 @@ class FocusService : Service() {
     private fun performEpisodeAnalysis(
         unlockTimeMs: Long,
         screenOffTimeMs: Long,
-        isStartEpisode: Boolean
+        isStartEpisode: Boolean,
+        isEndEpisode: Boolean = false
     ) {
         val startTime = (unlockTimeMs - 1000L).coerceAtLeast(0L)
         val rawEvents = UsageStatsHelper.queryActivityResumedEvents(
@@ -164,7 +165,7 @@ class FocusService : Service() {
             rawEvents = rawEvents,
             allowedApps = allowedApps,
             isSessionStartEpisode = isStartEpisode,
-            isSessionEndEpisode = false
+            isSessionEndEpisode = isEndEpisode
         )
 
         val result = episodeAnalyzer.analyze(input)
@@ -176,6 +177,22 @@ class FocusService : Service() {
     }
 
     private fun stopSessionInternal() {
+        if (lastUnlockTimeMs != 0L) {
+            val unlockT = lastUnlockTimeMs
+            val stopT = System.currentTimeMillis()
+            val startEpisodeFlag = isSessionStartEpisode
+            isSessionStartEpisode = false
+            lastUnlockTimeMs = 0L
+
+            Log.d(TAG, "SERVICE_STOP analyzing open episode from $unlockT to $stopT")
+            performEpisodeAnalysis(
+                unlockTimeMs = unlockT,
+                screenOffTimeMs = stopT,
+                isStartEpisode = startEpisodeFlag,
+                isEndEpisode = true
+            )
+        }
+
         unregisterScreenReceiver()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()

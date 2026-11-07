@@ -10,7 +10,7 @@ package com.example.focustrace.detection
  * Rule 5: App resumed within 0.5 s of unlock = auto.
  *         Auto app left within 2 s = pass (not counted). User-opened apps always count.
  * Rule 6: Kind: none counted -> UNLOCK_ONLY; only allowed -> ALLOWED_ONLY; else -> CHECK.
- * Rule 7: Session start counts as unlock. Start/end episodes with only FocusTrace are not saved.
+ * Rule 7: Session start counts as unlock. Start/end episodes with no counted usage are not saved.
  */
 class EpisodeAnalyzer(
     private val thisPackageName: String = "",
@@ -127,10 +127,10 @@ class EpisodeAnalyzer(
             else -> KIND_CHECK
         }
 
-        // Rule 7: Start/end episodes with no user app usages are not saved
+        // Rule 7: Start/end episodes with no counted app usages are not saved
         val isStartOrEnd = input.isSessionStartEpisode || input.isSessionEndEpisode
-        val hasUserAppUsages = appUsages.isNotEmpty()
-        val shouldSave = if (isStartOrEnd && !hasUserAppUsages) {
+        val hasCountedUsages = countedUsages.isNotEmpty()
+        val shouldSave = if (isStartOrEnd && !hasCountedUsages) {
             false
         } else {
             true

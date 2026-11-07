@@ -262,4 +262,31 @@ class EpisodeAnalyzerTest {
         val resultMid = analyzer.analyze(inputMidOnlySelf)
         assertTrue(resultMid.shouldSave)
     }
+
+    @Test
+    fun `rule 7 - end episode with auto app for 0_4s is not saved because no usage is counted`() {
+        val unlockTime = 1000L
+        val screenOffTime = 5000L
+
+        // sbrowser resumed at 1100L (auto), left at 1500L (duration 400ms <= 2000ms -> isCounted = false)
+        // followed by FocusTrace at 1500L (excluded)
+        val events = listOf(
+            RawUsageEvent("com.sec.android.app.sbrowser", 1100L),
+            RawUsageEvent("com.example.focustrace", 1500L)
+        )
+
+        val inputEndWithAutoApp = EpisodeInput(
+            unlockTimeMs = unlockTime,
+            screenOffTimeMs = screenOffTime,
+            rawEvents = events,
+            allowedApps = emptySet(),
+            excludedApps = defaultExcluded,
+            isSessionEndEpisode = true
+        )
+
+        val result = analyzer.analyze(inputEndWithAutoApp)
+
+        assertEquals(EpisodeAnalyzer.KIND_UNLOCK_ONLY, result.kind)
+        assertFalse(result.shouldSave)
+    }
 }
