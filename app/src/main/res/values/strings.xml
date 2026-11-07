@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">FocusTrace</string>
+
+    <!-- F-04 Early Stop Screen -->
+    <string name="early_stop_title">Why did you stop early?</string>
+    <string name="early_stop_subtitle">Select a reason for ending your focus session.</string>
+    <string name="early_stop_reason_distracted">I lost focus</string>
+    <string name="early_stop_reason_tired">I felt tired or sleepy</string>
+    <string name="early_stop_reason_interrupted">I was interrupted</string>
+    <string name="early_stop_reason_task_completed">I finished my task early</string>
+    <string name="early_stop_reason_other">Other</string>
+    <string name="early_stop_note_hint">Add a note (Please avoid sharing sensitive personal information)</string>
+    <string name="early_stop_save_button">Save &amp; Continue</string>
 </resources>
