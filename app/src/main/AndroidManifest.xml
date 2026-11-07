@@ -21,6 +21,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".ui.PrepareActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.SessionActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.EarlyStopActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.FinishActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.ReportActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
