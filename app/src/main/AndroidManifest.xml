@@ -66,6 +66,18 @@
                 android:value="Phone usage detection during focus session" />
         </service>
 
+        <receiver
+            android:name=".widget.FocusWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/focus_widget_info" />
+        </receiver>
+
     </application>
 
 </manifest>
