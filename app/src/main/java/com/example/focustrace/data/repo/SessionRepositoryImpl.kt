@@ -1,15 +1,18 @@
 package com.example.focustrace.data.repo
 
+import android.content.Context
 import com.example.focustrace.data.db.dao.SessionDao
 import com.example.focustrace.data.db.dao.SessionDetail
 import com.example.focustrace.data.db.entity.AllowedAppEntity
 import com.example.focustrace.data.db.entity.SessionEntity
+import com.example.focustrace.detection.FocusService
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
 class SessionRepositoryImpl(
+    private val context: Context,
     private val sessionDao: SessionDao,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : SessionRepository {
@@ -42,7 +45,9 @@ class SessionRepositoryImpl(
             unlockOnlyCount = 0,
             longestFocusMs = 0L,
         )
-        sessionDao.insertSession(session)
+        val newId = sessionDao.insertSession(session)
+        FocusService.startService(context, newId, goalMinutes)
+        newId
     }
 
     override suspend fun endSession(
@@ -59,6 +64,7 @@ class SessionRepositoryImpl(
             stopReason = stopReason?.name,
             stopMemo = stopMemo,
         )
+        FocusService.stopService(context)
     }
 
     override fun observeRunningSession(): Flow<SessionEntity?> {

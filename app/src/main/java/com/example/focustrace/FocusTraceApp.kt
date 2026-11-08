@@ -12,6 +12,6 @@ class FocusTraceApp : Application() {
     }
 
     val sessionRepository: SessionRepository by lazy {
-        SessionRepositoryImpl(database.sessionDao())
+        SessionRepositoryImpl(this, database.sessionDao())
     }
 }

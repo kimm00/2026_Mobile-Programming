@@ -18,9 +18,9 @@ import android.os.ResultReceiver
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.example.focustrace.FocusTraceApp
 import com.example.focustrace.MainActivity
 import com.example.focustrace.R
-import com.example.focustrace.data.db.AppDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -40,6 +40,7 @@ class FocusService : Service() {
     private val pendingAnalyses = mutableListOf<Job>()
 
     private var sessionId = -1L
+    private var goalMinutes = 0
     private var lastUnlockTimeMs = 0L
     private var isSessionStartEpisode = true
     private var homePackageName: String? = null
@@ -131,6 +132,12 @@ class FocusService : Service() {
 
                 if (requestedId <= 0L) {
                     Log.e(TAG, "Invalid session ID")
+                    startForeground(
+                        NOTIFICATION_ID,
+                        buildNotification(),
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                    )
+                    stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                     return START_NOT_STICKY
                 }
@@ -141,6 +148,7 @@ class FocusService : Service() {
                 }
 
                 sessionId = requestedId
+                goalMinutes = intent.getIntExtra(EXTRA_GOAL_MINUTES, 0)
                 isStopping = false
 
                 startForeground(
@@ -149,13 +157,14 @@ class FocusService : Service() {
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
                 )
 
-                val dao = AppDatabase.get(applicationContext)
+                val dao = (applicationContext as FocusTraceApp).database
                     .sessionDao()
 
                 episodeSink = RoomEpisodeSink(
-                    context = applicationContext,
+                    sessionDao = dao,
                     sessionId = sessionId,
-                    dao = dao
+                    scope = serviceScope,
+                    packageManager = packageManager
                 )
 
                 serviceScope.launch {
@@ -172,7 +181,7 @@ class FocusService : Service() {
 
                     registerScreenReceiver()
 
-                    Log.d(TAG, "Started session=$sessionId")
+                    Log.d(TAG, "Started session=$sessionId, goalMinutes=$goalMinutes")
                 }
             }
 
@@ -192,12 +201,12 @@ class FocusService : Service() {
                     intent.getParcelableExtra(EXTRA_RESULT_RECEIVER)
                 }
 
-                if (requestedId != sessionId || sessionId <= 0L) {
+                if (requestedId > 0L && requestedId != sessionId) {
                     receiver?.send(RESULT_ERROR, Bundle())
                     return START_NOT_STICKY
                 }
 
-                if (isStopping) {
+                if (sessionId <= 0L || isStopping) {
                     receiver?.send(RESULT_ERROR, Bundle())
                     return START_NOT_STICKY
                 }
@@ -358,6 +367,7 @@ class FocusService : Service() {
             "com.example.focustrace.action.STOP_SESSION"
 
         const val EXTRA_SESSION_ID = "extra_session_id"
+        const val EXTRA_GOAL_MINUTES = "extra_goal_minutes"
         const val EXTRA_RESULT_RECEIVER = "result_receiver"
 
         const val RESULT_OK = 1
@@ -368,13 +378,22 @@ class FocusService : Service() {
         private const val ANALYSIS_DELAY_MS = 1500L
         private const val TAG = "FocusTrace_Service"
 
-        fun startService(context: Context, sessionId: Long) {
+        fun startService(context: Context, sessionId: Long, goalMinutes: Int = 0) {
             val intent = Intent(context, FocusService::class.java).apply {
                 action = ACTION_START_SESSION
                 putExtra(EXTRA_SESSION_ID, sessionId)
+                putExtra(EXTRA_GOAL_MINUTES, goalMinutes)
             }
 
             ContextCompat.startForegroundService(context, intent)
+        }
+
+        fun stopService(context: Context) {
+            val intent = Intent(context, FocusService::class.java).apply {
+                action = ACTION_STOP_SESSION
+            }
+
+            context.startService(intent)
         }
 
         fun stopService(
