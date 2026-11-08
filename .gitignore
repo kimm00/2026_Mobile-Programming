@@ -32,3 +32,6 @@ local.properties
 # Secrets
 *.jks
 *.keystore
+
+# Firebase local configuration
+app/google-services.json
