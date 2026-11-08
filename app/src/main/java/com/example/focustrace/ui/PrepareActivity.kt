@@ -1,10 +1,15 @@
 package com.example.focustrace.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Button
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.focustrace.R
 import com.example.focustrace.data.db.AppDatabase
@@ -20,6 +25,21 @@ class PrepareActivity : AppCompatActivity() {
         RoomSessionRepository(
             AppDatabase.get(applicationContext).sessionDao()
         )
+    }
+
+    private var pendingSubject: String? = null
+    private var pendingGoalMinutes: Int? = null
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        val subject = pendingSubject
+        val goalMinutes = pendingGoalMinutes
+        if (subject != null && goalMinutes != null) {
+            pendingSubject = null
+            pendingGoalMinutes = null
+            performStartSession(subject, goalMinutes)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,41 +74,57 @@ class PrepareActivity : AppCompatActivity() {
 
             if (!isValid) return@setOnClickListener
 
-            startButton.isEnabled = false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                pendingSubject = subjectText
+                pendingGoalMinutes = goalMinutes
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                performStartSession(subjectText, goalMinutes!!)
+            }
+        }
+    }
 
-            lifecycleScope.launch {
-                try {
-                    val sessionId = repository.startSession(
-                        subject = subjectText,
-                        plan = null,
-                        goalMinutes = goalMinutes!!
+    private fun performStartSession(subjectText: String, goalMinutes: Int) {
+        val startButton = findViewById<Button>(R.id.btn_session)
+        startButton.isEnabled = false
+
+        lifecycleScope.launch {
+            try {
+                val sessionId = repository.startSession(
+                    subject = subjectText,
+                    plan = null,
+                    goalMinutes = goalMinutes
+                )
+
+                FocusService.startService(
+                    context = this@PrepareActivity,
+                    sessionId = sessionId
+                )
+
+                val intent = Intent(
+                    this@PrepareActivity,
+                    SessionActivity::class.java
+                ).apply {
+                    putExtra(
+                        SessionActivity.EXTRA_SESSION_ID,
+                        sessionId
                     )
-
-                    FocusService.startService(
-                        context = this@PrepareActivity,
-                        sessionId = sessionId
-                    )
-
-                    val intent = Intent(
-                        this@PrepareActivity,
-                        SessionActivity::class.java
-                    ).apply {
-                        putExtra(
-                            SessionActivity.EXTRA_SESSION_ID,
-                            sessionId
-                        )
-                    }
-
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    Toast.makeText(
-                        this@PrepareActivity,
-                        "Failed to start session",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                } finally {
-                    startButton.isEnabled = true
                 }
+
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@PrepareActivity,
+                    "Failed to start session",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } finally {
+                startButton.isEnabled = true
             }
         }
     }
