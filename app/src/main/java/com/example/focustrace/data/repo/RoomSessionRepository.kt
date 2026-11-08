@@ -44,9 +44,34 @@ class RoomSessionRepository(
             "Cannot end a session with RUNNING status"
         }
 
+        val session = dao.getSessionById(sessionId)
+            ?: throw IllegalArgumentException(
+                "Session not found: $sessionId"
+            )
+
+        require(session.status == SessionStatus.RUNNING.name) {
+            "Session is already ended: $sessionId"
+        }
+
+        val endAt = System.currentTimeMillis()
+
+        // Temporary F-05 metric:
+        // Use elapsed session time until F-02 tracking is integrated.
+        val elapsedMs = (endAt - session.startAt)
+            .coerceAtLeast(0L)
+
+        dao.updateSessionSummary(
+            sessionId = sessionId,
+            focusMs = elapsedMs,
+            phoneUseMs = 0L,
+            checkCount = 0,
+            unlockOnlyCount = 0,
+            longestFocusMs = elapsedMs
+        )
+
         dao.updateSessionEnd(
             sessionId = sessionId,
-            endAt = System.currentTimeMillis(),
+            endAt = endAt,
             status = status.name,
             stopReason = stopReason?.name,
             stopMemo = stopMemo
