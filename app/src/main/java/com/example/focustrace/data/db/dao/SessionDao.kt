@@ -79,4 +79,34 @@ abstract class SessionDao {
 
     @Query("DELETE FROM allowed_apps WHERE packageName = :packageName")
     abstract suspend fun deleteAllowedApp(packageName: String)
+
+    @Query("""
+    SELECT * FROM sessions
+        WHERE startAt >= :startTime
+          AND startAt < :endTime
+          AND status != 'RUNNING'
+        ORDER BY startAt DESC
+    """)
+    abstract suspend fun getSessionsByPeriod(
+        startTime: Long,
+        endTime: Long
+    ): List<SessionEntity>
+
+    @Query("""
+    SELECT * FROM phone_events
+        WHERE sessionId IN (:sessionIds)
+        ORDER BY startAt ASC
+    """)
+    abstract suspend fun getEventsBySessionIds(
+        sessionIds: List<Long>
+    ): List<PhoneEventEntity>
+
+    @Query("""
+    SELECT * FROM app_usages
+        WHERE sessionId IN (:sessionIds)
+        ORDER BY startAt ASC
+    """)
+    abstract suspend fun getUsagesBySessionIds(
+        sessionIds: List<Long>
+    ): List<AppUsageEntity>
 }
