@@ -39,7 +39,20 @@ class RoomEpisodeSink(
         dao.insertEpisode(event, usages)
     }
 
+
     private fun getAppLabel(packageName: String): String {
+        val knownApps = mapOf(
+            "com.google.android.youtube" to "YouTube",
+            "com.android.vending" to "Google Play Store",
+            "com.google.android.googlequicksearchbox" to "Google",
+            "com.instagram.android" to "Instagram",
+            "com.kakao.talk" to "KakaoTalk",
+            "com.spotify.music" to "Spotify",
+            "com.netflix.mediaclient" to "Netflix"
+        )
+
+        knownApps[packageName]?.let { return it }
+
         return try {
             val pm = context.packageManager
             val info = pm.getApplicationInfo(packageName, 0)
