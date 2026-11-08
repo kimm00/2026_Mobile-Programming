@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.focustrace.data.db.dao.SessionDao
 import com.example.focustrace.data.db.entity.AiInsightEntity
 import com.example.focustrace.data.db.entity.AllowedAppEntity
 import com.example.focustrace.data.db.entity.AppUsageEntity
@@ -26,6 +27,8 @@ import com.example.focustrace.data.db.entity.StretchMissionEntity
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
+
+    abstract fun sessionDao(): SessionDao
 
     companion object {
         @Volatile
