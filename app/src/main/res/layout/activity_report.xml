@@ -12,9 +12,8 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Title Header -->
+        <!-- Header -->
         <TextView
-            android:id="@+id/tvReportTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Focus Report"
@@ -22,16 +21,13 @@
             android:textSize="24sp"
             android:textStyle="bold" />
 
-        <!-- Period Tabs (Day / Week / Month) -->
+        <!-- Day / Week / Month -->
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabLayoutPeriod"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:background="@android:color/transparent"
             app:tabIndicatorColor="@color/focus_green_primary"
-            app:tabIndicatorHeight="3dp"
-            app:tabRippleColor="@color/focus_green_light"
             app:tabSelectedTextColor="@color/focus_text_primary"
             app:tabTextColor="@color/focus_text_secondary">
 
@@ -51,7 +47,7 @@
                 android:text="Month" />
         </com.google.android.material.tabs.TabLayout>
 
-        <!-- Date Navigation Row (< Date Label >) -->
+        <!-- Date Navigation -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -61,19 +57,11 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnPrevPeriod"
-                style="@style/Widget.Material3.Button.Icon"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:insetLeft="0dp"
-                android:insetTop="0dp"
-                android:insetRight="0dp"
-                android:insetBottom="0dp"
-                android:padding="0dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:text="&lt;"
                 android:textColor="@color/focus_text_primary"
-                android:textSize="18sp"
-                app:backgroundTint="@color/focus_green_light"
-                app:cornerRadius="20dp" />
+                app:backgroundTint="@color/focus_green_light" />
 
             <TextView
                 android:id="@+id/tvReportSubtitle"
@@ -82,35 +70,26 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:textColor="@color/focus_text_primary"
-                android:textSize="15sp"
+                android:textSize="14sp"
                 android:textStyle="bold"
-                tools:text="Week of Mar 1, 2026 – Mar 7, 2026" />
+                tools:text="Nov 2, 2026 – Nov 8, 2026" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnNextPeriod"
-                style="@style/Widget.Material3.Button.Icon"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:insetLeft="0dp"
-                android:insetTop="0dp"
-                android:insetRight="0dp"
-                android:insetBottom="0dp"
-                android:padding="0dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:text="&gt;"
                 android:textColor="@color/focus_text_primary"
-                android:textSize="18sp"
-                app:backgroundTint="@color/focus_green_light"
-                app:cornerRadius="20dp" />
+                app:backgroundTint="@color/focus_green_light" />
         </LinearLayout>
 
-        <!-- Summary Metrics Cards Grid -->
+        <!-- Summary Row 1 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:orientation="horizontal">
 
-            <!-- Card 1: Total Focus Time -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -118,7 +97,6 @@
                 android:layout_weight="1"
                 app:cardBackgroundColor="@color/focus_card_bg"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/focus_green_light"
                 app:strokeWidth="1dp">
 
@@ -129,7 +107,7 @@
                     android:padding="12dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Total Focus"
                         android:textColor="@color/focus_text_secondary"
@@ -137,17 +115,16 @@
 
                     <TextView
                         android:id="@+id/tvTotalFocusValue"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:textColor="@color/focus_text_primary"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        tools:text="4h 35m" />
+                        tools:text="1h 25m" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Card 2: Checks per Hour -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -155,7 +132,6 @@
                 android:layout_weight="1"
                 app:cardBackgroundColor="@color/focus_card_bg"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/focus_green_light"
                 app:strokeWidth="1dp">
 
@@ -166,7 +142,7 @@
                     android:padding="12dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Checks / Hour"
                         android:textColor="@color/focus_text_secondary"
@@ -174,24 +150,24 @@
 
                     <TextView
                         android:id="@+id/tvChecksPerHourValue"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:textColor="@color/focus_text_primary"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        tools:text="1.96 / hr" />
+                        tools:text="3.53 / hr" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
 
+        <!-- Summary Row 2 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:orientation="horizontal">
 
-            <!-- Card 3: Completion Rate -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -199,7 +175,6 @@
                 android:layout_weight="1"
                 app:cardBackgroundColor="@color/focus_card_bg"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/focus_green_light"
                 app:strokeWidth="1dp">
 
@@ -210,7 +185,7 @@
                     android:padding="12dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Goal Completion"
                         android:textColor="@color/focus_text_secondary"
@@ -218,17 +193,16 @@
 
                     <TextView
                         android:id="@+id/tvCompletionRateValue"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:textColor="@color/focus_text_primary"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        tools:text="60.0%" />
+                        tools:text="75.0%" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Card 4: Longest Focus -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -236,7 +210,6 @@
                 android:layout_weight="1"
                 app:cardBackgroundColor="@color/focus_card_bg"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
                 app:strokeColor="@color/focus_green_light"
                 app:strokeWidth="1dp">
 
@@ -247,7 +220,7 @@
                     android:padding="12dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Longest Focus"
                         android:textColor="@color/focus_text_secondary"
@@ -255,27 +228,102 @@
 
                     <TextView
                         android:id="@+id/tvLongestFocusValue"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:textColor="@color/focus_text_primary"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        tools:text="60 min" />
+                        tools:text="40 min" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
 
-        <!-- Day Focus Timeline Card (Visible in Day View) -->
+        <!-- NEW: Phone Metrics -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                app:cardBackgroundColor="@color/focus_card_bg"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="@color/focus_green_light"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Phone Checks"
+                        android:textColor="@color/focus_text_secondary"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvPhoneChecksValue"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/focus_text_primary"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        tools:text="5 times" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                app:cardBackgroundColor="@color/focus_card_bg"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="@color/focus_green_light"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Phone Usage"
+                        android:textColor="@color/focus_text_secondary"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvPhoneUsageValue"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/focus_text_primary"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        tools:text="12 min" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <!-- NEW: Most Used Apps -->
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardDayTimeline"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:visibility="gone"
             app:cardBackgroundColor="@color/focus_card_bg"
             app:cardCornerRadius="16dp"
-            app:cardElevation="3dp"
             app:strokeColor="@color/focus_green_light"
             app:strokeWidth="1dp">
 
@@ -286,7 +334,46 @@
                 android:padding="16dp">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Most Used Apps"
+                    android:textColor="@color/focus_text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvMostUsedAppsContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:lineSpacingExtra="6dp"
+                    android:text="No app usage recorded"
+                    android:textColor="@color/focus_text_secondary"
+                    android:textSize="14sp"
+                    tools:text="Instagram: 7 min&#10;YouTube: 5 min" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Day Focus Timeline -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardDayTimeline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/focus_card_bg"
+            app:cardCornerRadius="16dp"
+            app:strokeColor="@color/focus_green_light"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Focus Timeline"
                     android:textColor="@color/focus_text_primary"
@@ -300,12 +387,11 @@
                     android:layout_marginTop="12dp"
                     android:lineSpacingExtra="4dp"
                     android:textColor="@color/focus_text_primary"
-                    android:textSize="14sp"
-                    tools:text="09:00 - 10:00 | Algorithm Study (50m focus, COMPLETED)\n  • 09:20 - 09:25 Phone Check" />
+                    android:textSize="14sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Chart Container Card (Visible in Week / Month Views) -->
+        <!-- Week / Month Chart -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardChartContainer"
             android:layout_width="match_parent"
@@ -313,7 +399,6 @@
             android:layout_marginTop="16dp"
             app:cardBackgroundColor="@color/focus_card_bg"
             app:cardCornerRadius="16dp"
-            app:cardElevation="3dp"
             app:strokeColor="@color/focus_green_light"
             app:strokeWidth="1dp">
 
@@ -325,7 +410,7 @@
 
                 <TextView
                     android:id="@+id/tvChartTitle"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Focus time by day"
                     android:textColor="@color/focus_text_primary"
@@ -334,14 +419,13 @@
 
                 <TextView
                     android:id="@+id/tvChartSubtitle"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="Daily total focus minutes"
                     android:textColor="@color/focus_text_secondary"
                     android:textSize="12sp" />
 
-                <!-- MPAndroidChart BarChart -->
                 <com.github.mikephil.charting.charts.BarChart
                     android:id="@+id/barChartFocusByDay"
                     android:layout_width="match_parent"
@@ -350,14 +434,13 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Early Stop Reasons Summary Card -->
+        <!-- Early Stop Reasons -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             app:cardBackgroundColor="@color/focus_card_bg"
             app:cardCornerRadius="16dp"
-            app:cardElevation="3dp"
             app:strokeColor="@color/focus_green_light"
             app:strokeWidth="1dp">
 
@@ -368,7 +451,7 @@
                 android:padding="16dp">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Early Stop Reasons"
                     android:textColor="@color/focus_text_primary"
@@ -385,5 +468,6 @@
                     tools:text="TIRED: 1, INTERRUPTED: 1" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
     </LinearLayout>
 </ScrollView>
