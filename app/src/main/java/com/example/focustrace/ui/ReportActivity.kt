@@ -33,38 +33,46 @@ import java.util.Locale
 
 class ReportActivity : AppCompatActivity() {
 
-    // Use the device's local time zone and current date.
     private val zoneId: ZoneId = ZoneId.systemDefault()
 
-    // Load actual session data from Room.
     private val repository: ReportRepository by lazy {
-        RoomReportRepository(AppDatabase.get(applicationContext))
+        RoomReportRepository(
+            AppDatabase.get(applicationContext)
+        )
     }
 
-    private var selectedPeriodType: PeriodType = PeriodType.WEEK
-    private var selectedDate: LocalDate = LocalDate.now(zoneId)
-
-    // Cancel previous requests when the selected period changes.
+    private var selectedPeriodType = PeriodType.WEEK
+    private var selectedDate = LocalDate.now(zoneId)
     private var reportJob: Job? = null
 
+    // Period navigation
     private lateinit var tabLayoutPeriod: TabLayout
     private lateinit var tvReportSubtitle: TextView
     private lateinit var btnPrevPeriod: Button
     private lateinit var btnNextPeriod: Button
 
+    // Existing summary cards
     private lateinit var tvTotalFocusValue: TextView
     private lateinit var tvChecksPerHourValue: TextView
     private lateinit var tvCompletionRateValue: TextView
     private lateinit var tvLongestFocusValue: TextView
 
+    // New phone usage cards
+    private lateinit var tvPhoneChecksValue: TextView
+    private lateinit var tvPhoneUsageValue: TextView
+    private lateinit var tvMostUsedAppsContent: TextView
+
+    // Day timeline
     private lateinit var cardDayTimeline: View
     private lateinit var tvDayTimelineContent: TextView
 
+    // Week / Month charts
     private lateinit var cardChartContainer: View
     private lateinit var tvChartTitle: TextView
     private lateinit var tvChartSubtitle: TextView
     private lateinit var barChartFocusByDay: BarChart
 
+    // Early stop
     private lateinit var tvEarlyStopReasonsSummary: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,48 +82,77 @@ class ReportActivity : AppCompatActivity() {
         initViews()
         setupListeners()
 
-        // Default to the Week tab.
+        // Default period: Week
         tabLayoutPeriod.getTabAt(1)?.select()
     }
 
     override fun onResume() {
         super.onResume()
 
-        // Reload records when returning from a focus session.
         if (::tabLayoutPeriod.isInitialized) {
             updateReport()
         }
     }
 
     private fun initViews() {
+
         tabLayoutPeriod = findViewById(R.id.tabLayoutPeriod)
         tvReportSubtitle = findViewById(R.id.tvReportSubtitle)
         btnPrevPeriod = findViewById(R.id.btnPrevPeriod)
         btnNextPeriod = findViewById(R.id.btnNextPeriod)
 
-        tvTotalFocusValue = findViewById(R.id.tvTotalFocusValue)
-        tvChecksPerHourValue = findViewById(R.id.tvChecksPerHourValue)
-        tvCompletionRateValue = findViewById(R.id.tvCompletionRateValue)
-        tvLongestFocusValue = findViewById(R.id.tvLongestFocusValue)
+        tvTotalFocusValue =
+            findViewById(R.id.tvTotalFocusValue)
 
-        cardDayTimeline = findViewById(R.id.cardDayTimeline)
-        tvDayTimelineContent = findViewById(R.id.tvDayTimelineContent)
+        tvChecksPerHourValue =
+            findViewById(R.id.tvChecksPerHourValue)
 
-        cardChartContainer = findViewById(R.id.cardChartContainer)
-        tvChartTitle = findViewById(R.id.tvChartTitle)
-        tvChartSubtitle = findViewById(R.id.tvChartSubtitle)
-        barChartFocusByDay = findViewById(R.id.barChartFocusByDay)
+        tvCompletionRateValue =
+            findViewById(R.id.tvCompletionRateValue)
 
-        tvEarlyStopReasonsSummary = findViewById(
-            R.id.tvEarlyStopReasonsSummary
-        )
+        tvLongestFocusValue =
+            findViewById(R.id.tvLongestFocusValue)
+
+        // New metrics
+        tvPhoneChecksValue =
+            findViewById(R.id.tvPhoneChecksValue)
+
+        tvPhoneUsageValue =
+            findViewById(R.id.tvPhoneUsageValue)
+
+        tvMostUsedAppsContent =
+            findViewById(R.id.tvMostUsedAppsContent)
+
+        cardDayTimeline =
+            findViewById(R.id.cardDayTimeline)
+
+        tvDayTimelineContent =
+            findViewById(R.id.tvDayTimelineContent)
+
+        cardChartContainer =
+            findViewById(R.id.cardChartContainer)
+
+        tvChartTitle =
+            findViewById(R.id.tvChartTitle)
+
+        tvChartSubtitle =
+            findViewById(R.id.tvChartSubtitle)
+
+        barChartFocusByDay =
+            findViewById(R.id.barChartFocusByDay)
+
+        tvEarlyStopReasonsSummary =
+            findViewById(R.id.tvEarlyStopReasonsSummary)
     }
 
     private fun setupListeners() {
+
         tabLayoutPeriod.addOnTabSelectedListener(
             object : TabLayout.OnTabSelectedListener {
 
-                override fun onTabSelected(tab: TabLayout.Tab?) {
+                override fun onTabSelected(
+                    tab: TabLayout.Tab?
+                ) {
                     selectedPeriodType = when (tab?.position) {
                         0 -> PeriodType.DAY
                         1 -> PeriodType.WEEK
@@ -126,13 +163,18 @@ class ReportActivity : AppCompatActivity() {
                     updateReport()
                 }
 
-                override fun onTabUnselected(tab: TabLayout.Tab?) {}
+                override fun onTabUnselected(
+                    tab: TabLayout.Tab?
+                ) {}
 
-                override fun onTabReselected(tab: TabLayout.Tab?) {}
+                override fun onTabReselected(
+                    tab: TabLayout.Tab?
+                ) {}
             }
         )
 
         btnPrevPeriod.setOnClickListener {
+
             selectedDate = when (selectedPeriodType) {
                 PeriodType.DAY -> selectedDate.minusDays(1)
                 PeriodType.WEEK -> selectedDate.minusWeeks(1)
@@ -143,6 +185,7 @@ class ReportActivity : AppCompatActivity() {
         }
 
         btnNextPeriod.setOnClickListener {
+
             selectedDate = when (selectedPeriodType) {
                 PeriodType.DAY -> selectedDate.plusDays(1)
                 PeriodType.WEEK -> selectedDate.plusWeeks(1)
@@ -154,26 +197,41 @@ class ReportActivity : AppCompatActivity() {
     }
 
     private fun updateReport() {
+
         val requestedPeriodType = selectedPeriodType
+        val requestedDate = selectedDate
 
         val (startMs, endMs) = when (requestedPeriodType) {
+
             PeriodType.DAY ->
-                ReportCalculator.calculateDayBounds(selectedDate, zoneId)
+                ReportCalculator.calculateDayBounds(
+                    requestedDate, zoneId
+                )
 
             PeriodType.WEEK ->
-                ReportCalculator.calculateWeekBounds(selectedDate, zoneId)
+                ReportCalculator.calculateWeekBounds(
+                    requestedDate, zoneId
+                )
 
             PeriodType.MONTH ->
-                ReportCalculator.calculateMonthBounds(selectedDate, zoneId)
+                ReportCalculator.calculateMonthBounds(
+                    requestedDate, zoneId
+                )
         }
 
-        // Prevent older requests from overwriting newer results.
+        // Cancel previous request
         reportJob?.cancel()
 
-        renderDateHeader(startMs, endMs)
+        renderDateHeader(
+            requestedPeriodType,
+            startMs,
+            endMs
+        )
 
         reportJob = lifecycleScope.launch {
+
             try {
+
                 val reportData = withContext(Dispatchers.IO) {
                     repository.getReport(
                         periodType = requestedPeriodType,
@@ -183,14 +241,23 @@ class ReportActivity : AppCompatActivity() {
                     )
                 }
 
+                // Existing summary
                 renderSummaryCards(reportData)
+
+                // New app usage list
+                renderAppUsages(reportData)
+
+                // Existing charts / timeline
                 renderMainContent(reportData)
+
+                // Existing early stop reasons
                 renderEarlyStopReasons(reportData)
 
             } catch (e: CancellationException) {
                 throw e
 
             } catch (e: Exception) {
+
                 Log.e(
                     "ReportActivity",
                     "Failed to load Room report",
@@ -206,7 +273,12 @@ class ReportActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderDateHeader(startMs: Long, endMs: Long) {
+    private fun renderDateHeader(
+        periodType: PeriodType,
+        startMs: Long,
+        endMs: Long
+    ) {
+
         val startDate = ZonedDateTime.ofInstant(
             Instant.ofEpochMilli(startMs),
             zoneId
@@ -217,29 +289,36 @@ class ReportActivity : AppCompatActivity() {
             zoneId
         ).toLocalDate()
 
-        val text = when (selectedPeriodType) {
+        val text = when (periodType) {
+
             PeriodType.DAY -> {
+
                 val formatter = DateTimeFormatter.ofPattern(
                     "EEE, MMM d, yyyy",
                     Locale.ENGLISH
                 )
+
                 startDate.format(formatter)
             }
 
             PeriodType.WEEK -> {
+
                 val formatter = DateTimeFormatter.ofPattern(
                     "MMM d, yyyy",
                     Locale.ENGLISH
                 )
+
                 "${startDate.format(formatter)} – " +
                         endDateInclusive.format(formatter)
             }
 
             PeriodType.MONTH -> {
+
                 val formatter = DateTimeFormatter.ofPattern(
                     "MMMM yyyy",
                     Locale.ENGLISH
                 )
+
                 startDate.format(formatter)
             }
         }
@@ -247,38 +326,120 @@ class ReportActivity : AppCompatActivity() {
         tvReportSubtitle.text = text
     }
 
-    private fun renderSummaryCards(report: PeriodReportData) {
+    private fun renderSummaryCards(
+        report: PeriodReportData
+    ) {
+
         val summary = report.summary
 
-        val focusMinutes = summary.totalFocusMs / (60 * 1000)
-        val hours = focusMinutes / 60
-        val mins = focusMinutes % 60
+        // Total Focus
+        val focusMinutes =
+            summary.totalFocusMs / 60_000L
 
-        tvTotalFocusValue.text = if (hours > 0) {
-            "${hours}h ${mins}m"
+        val hours = focusMinutes / 60L
+        val minutes = focusMinutes % 60L
+
+        tvTotalFocusValue.text = if (hours > 0L) {
+            "${hours}h ${minutes}m"
         } else {
-            "${mins}m"
+            "${minutes}m"
         }
 
+        // Checks per Hour
         tvChecksPerHourValue.text = String.format(
             Locale.US,
             "%.2f / hr",
             summary.checksPerFocusHour
         )
 
+        // Goal Completion
         tvCompletionRateValue.text = String.format(
             Locale.US,
             "%.1f%%",
             summary.goalCompletionRate
         )
 
-        val longestMins = summary.longestFocusMs / (60 * 1000)
-        tvLongestFocusValue.text = "${longestMins} min"
+        // Longest Focus
+        val longestMinutes =
+            summary.longestFocusMs / 60_000L
+
+        tvLongestFocusValue.text =
+            "$longestMinutes min"
+
+        // NEW: Total Phone Checks
+        tvPhoneChecksValue.text =
+            "${summary.totalCheckCount} times"
+
+        // NEW: Total Phone Usage
+        val phoneSeconds =
+            summary.totalPhoneUseMs / 1_000L
+
+        val phoneHours = phoneSeconds / 3_600L
+        val phoneMinutes = (phoneSeconds % 3_600L) / 60L
+        val remainingSeconds = phoneSeconds % 60L
+
+        tvPhoneUsageValue.text = when {
+            phoneHours > 0L ->
+                "${phoneHours}h ${phoneMinutes}m"
+
+            phoneMinutes > 0L ->
+                "${phoneMinutes}m ${remainingSeconds}s"
+
+            else ->
+                "${remainingSeconds}s"
+        }
     }
 
-    private fun renderMainContent(report: PeriodReportData) {
+    // NEW: Display most used apps
+    private fun renderAppUsages(
+        report: PeriodReportData
+    ) {
+
+        val apps = report.topAppUsages
+            .filter { it.totalDurationMs > 0L }
+            .take(5)
+
+        if (apps.isEmpty()) {
+
+            tvMostUsedAppsContent.text =
+                "No app usage recorded"
+
+            return
+        }
+
+        val content = apps.mapIndexed { index, app ->
+
+            val totalSeconds =
+                app.totalDurationMs / 1_000L
+
+            val minutes = totalSeconds / 60L
+            val seconds = totalSeconds % 60L
+
+            val durationText = if (minutes > 0L) {
+                "${minutes}m ${seconds}s"
+            } else {
+                "${seconds}s"
+            }
+
+            val appName = app.appLabel
+                .takeIf { it.isNotBlank() }
+                ?: app.packageName
+
+            "${index + 1}. $appName — $durationText"
+
+        }.joinToString("\n")
+
+        tvMostUsedAppsContent.text = content
+    }
+
+    private fun renderMainContent(
+        report: PeriodReportData
+    ) {
+
         when (report.periodType) {
+
             PeriodType.DAY -> {
+
                 cardDayTimeline.visibility = View.VISIBLE
                 cardChartContainer.visibility = View.GONE
 
@@ -286,11 +447,15 @@ class ReportActivity : AppCompatActivity() {
             }
 
             PeriodType.WEEK -> {
+
                 cardDayTimeline.visibility = View.GONE
                 cardChartContainer.visibility = View.VISIBLE
 
-                tvChartTitle.text = "Focus time by day"
-                tvChartSubtitle.text = "Daily total focus minutes"
+                tvChartTitle.text =
+                    "Focus time by day"
+
+                tvChartSubtitle.text =
+                    "Daily total focus minutes"
 
                 FocusBarChartBinder.bindChart(
                     barChartFocusByDay,
@@ -299,11 +464,15 @@ class ReportActivity : AppCompatActivity() {
             }
 
             PeriodType.MONTH -> {
+
                 cardDayTimeline.visibility = View.GONE
                 cardChartContainer.visibility = View.VISIBLE
 
-                tvChartTitle.text = "Focus time by week"
-                tvChartSubtitle.text = "Weekly total focus minutes"
+                tvChartTitle.text =
+                    "Focus time by week"
+
+                tvChartSubtitle.text =
+                    "Weekly total focus minutes"
 
                 FocusBarChartBinder.bindWeeklyChart(
                     barChartFocusByDay,
@@ -313,11 +482,17 @@ class ReportActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderDayTimeline(report: PeriodReportData) {
+    private fun renderDayTimeline(
+        report: PeriodReportData
+    ) {
+
         val sessions = report.sessions
 
         if (sessions.isEmpty()) {
-            tvDayTimelineContent.text = "No focus sessions on this day."
+
+            tvDayTimelineContent.text =
+                "No focus sessions on this day."
+
             return
         }
 
@@ -329,26 +504,31 @@ class ReportActivity : AppCompatActivity() {
         val sb = StringBuilder()
 
         sessions.forEachIndexed { index, session ->
-            val startTimeStr = ZonedDateTime.ofInstant(
+
+            val startTime = ZonedDateTime.ofInstant(
                 Instant.ofEpochMilli(session.startAt),
                 zoneId
             ).format(timeFormatter)
 
-            val endTimeStr = if (session.endAt != null) {
+            val endTime = if (session.endAt != null) {
+
                 ZonedDateTime.ofInstant(
                     Instant.ofEpochMilli(session.endAt),
                     zoneId
                 ).format(timeFormatter)
+
             } else {
                 "Ongoing"
             }
 
-            val focusMins = session.focusMs / (60 * 1000)
+            val focusMinutes =
+                session.focusMs / 60_000L
 
             sb.append(
-                "• $startTimeStr - $endTimeStr | " +
+                "$startTime - $endTime | " +
                         "${session.subject} " +
-                        "(${focusMins}m focus, ${session.status})\n"
+                        "(${focusMinutes}m focus, " +
+                        "${session.status})\n"
             )
 
             val sessionEvents = report.phoneEvents.filter {
@@ -356,6 +536,7 @@ class ReportActivity : AppCompatActivity() {
             }
 
             sessionEvents.forEach { event ->
+
                 val eventStart = ZonedDateTime.ofInstant(
                     Instant.ofEpochMilli(event.startAt),
                     zoneId
@@ -367,7 +548,7 @@ class ReportActivity : AppCompatActivity() {
                 ).format(timeFormatter)
 
                 sb.append(
-                    "    └ $eventStart - $eventEnd " +
+                    "    $eventStart - $eventEnd " +
                             "Phone Check (${event.kind})\n"
                 )
             }
@@ -377,18 +558,25 @@ class ReportActivity : AppCompatActivity() {
             }
         }
 
-        tvDayTimelineContent.text = sb.toString().trimEnd()
+        tvDayTimelineContent.text =
+            sb.toString().trimEnd()
     }
 
-    private fun renderEarlyStopReasons(report: PeriodReportData) {
+    private fun renderEarlyStopReasons(
+        report: PeriodReportData
+    ) {
+
         val reasons = report.earlyStopReasons
 
-        tvEarlyStopReasonsSummary.text = if (reasons.isNotEmpty()) {
-            reasons.joinToString(", ") {
-                "${it.reasonCode}: ${it.count}"
+        tvEarlyStopReasonsSummary.text =
+            if (reasons.isNotEmpty()) {
+
+                reasons.joinToString(", ") {
+                    "${it.reasonCode}: ${it.count}"
+                }
+
+            } else {
+                "None"
             }
-        } else {
-            "None"
-        }
     }
 }

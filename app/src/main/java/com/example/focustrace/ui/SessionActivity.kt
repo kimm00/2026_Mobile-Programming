@@ -1,8 +1,10 @@
-
 package com.example.focustrace.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.ResultReceiver
 import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,7 +15,11 @@ import com.example.focustrace.data.db.AppDatabase
 import com.example.focustrace.data.repo.RoomSessionRepository
 import com.example.focustrace.data.repo.SessionStatus
 import com.example.focustrace.data.repo.StopReason
+import com.example.focustrace.detection.FocusService
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
+import kotlin.coroutines.resume
 
 class SessionActivity : AppCompatActivity() {
 
@@ -44,8 +50,9 @@ class SessionActivity : AppCompatActivity() {
             val stopMemo = result.data
                 ?.getStringExtra(EarlyStopActivity.EXTRA_STOP_MEMO)
 
-            val stopReason = StopReason.entries
-                .firstOrNull { it.name == reasonCode }
+            val stopReason = StopReason.entries.firstOrNull {
+                it.name == reasonCode
+            }
 
             if (stopReason == null) {
                 Toast.makeText(
@@ -109,6 +116,14 @@ class SessionActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
+                val saved = waitForDetectionToStop()
+
+                if (!saved) {
+                    throw IllegalStateException(
+                        "Phone usage saving failed"
+                    )
+                }
+
                 repository.endSession(
                     sessionId = sessionId,
                     status = status,
@@ -122,16 +137,51 @@ class SessionActivity : AppCompatActivity() {
                         FinishActivity::class.java
                     )
                 )
+
                 finish()
             } catch (e: Exception) {
                 Toast.makeText(
                     this@SessionActivity,
-                    "Failed to save session",
-                    Toast.LENGTH_SHORT
+                    "Failed to finish session: ${e.message}",
+                    Toast.LENGTH_LONG
                 ).show()
 
                 earlyStopButton.isEnabled = true
                 finishButton.isEnabled = true
+            }
+        }
+    }
+
+    private suspend fun waitForDetectionToStop(): Boolean {
+        return withTimeout(15_000L) {
+            suspendCancellableCoroutine { continuation ->
+
+                val receiver = object : ResultReceiver(
+                    Handler(Looper.getMainLooper())
+                ) {
+                    override fun onReceiveResult(
+                        resultCode: Int,
+                        resultData: Bundle?
+                    ) {
+                        if (continuation.isActive) {
+                            continuation.resume(
+                                resultCode == FocusService.RESULT_OK
+                            )
+                        }
+                    }
+                }
+
+                try {
+                    FocusService.stopService(
+                        context = this@SessionActivity,
+                        sessionId = sessionId,
+                        receiver = receiver
+                    )
+                } catch (e: Exception) {
+                    if (continuation.isActive) {
+                        continuation.resume(false)
+                    }
+                }
             }
         }
     }

@@ -9,6 +9,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.focustrace.R
 import com.example.focustrace.data.db.AppDatabase
 import com.example.focustrace.data.repo.RoomSessionRepository
+import com.example.focustrace.detection.FocusService
 import kotlinx.coroutines.launch
 
 class PrepareActivity : AppCompatActivity() {
@@ -36,11 +37,19 @@ class PrepareActivity : AppCompatActivity() {
                         goalMinutes = 25
                     )
 
+                    FocusService.startService(
+                        context = this@PrepareActivity,
+                        sessionId = sessionId
+                    )
+
                     val intent = Intent(
                         this@PrepareActivity,
                         SessionActivity::class.java
                     ).apply {
-                        putExtra(SessionActivity.EXTRA_SESSION_ID, sessionId)
+                        putExtra(
+                            SessionActivity.EXTRA_SESSION_ID,
+                            sessionId
+                        )
                     }
 
                     startActivity(intent)
