@@ -109,4 +109,7 @@ abstract class SessionDao {
     abstract suspend fun getUsagesBySessionIds(
         sessionIds: List<Long>
     ): List<AppUsageEntity>
+
+    @Query("SELECT * FROM sessions WHERE id = :sessionId LIMIT 1")
+    abstract suspend fun getSessionById(sessionId: Long): SessionEntity?
 }
