@@ -3,7 +3,7 @@ package com.example.focustrace
 import android.app.Application
 import com.example.focustrace.data.db.AppDatabase
 import com.example.focustrace.data.repo.SessionRepository
-import com.example.focustrace.data.repo.SessionRepositoryImpl
+import com.example.focustrace.data.repo.RoomSessionRepository
 
 class FocusTraceApp : Application() {
 
@@ -12,6 +12,6 @@ class FocusTraceApp : Application() {
     }
 
     val sessionRepository: SessionRepository by lazy {
-        SessionRepositoryImpl(this, database.sessionDao())
+        RoomSessionRepository(database.sessionDao())
     }
 }
