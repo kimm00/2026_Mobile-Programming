@@ -134,5 +134,7 @@ data class PeriodReportData(
     val weeklyStats: List<WeeklyFocusStat>,
     val hourlyPhoneUsage: List<HourlyPhoneUsageStat>,
     val topAppUsages: List<AppUsageStat>,
-    val earlyStopReasons: List<EarlyStopReasonStat>
+    val earlyStopReasons: List<EarlyStopReasonStat>,
+    val sessions: List<ReportSession> = emptyList(),
+    val phoneEvents: List<ReportPhoneEvent> = emptyList()
 )

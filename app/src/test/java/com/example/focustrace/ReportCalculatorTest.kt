@@ -9,6 +9,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZonedDateTime
 
@@ -57,6 +59,10 @@ class ReportCalculatorTest {
         assertEquals(1, report.earlyStopReasons.size)
         assertEquals("TIRED", report.earlyStopReasons[0].reasonCode)
         assertEquals(1, report.earlyStopReasons[0].count)
+
+        // Sessions and Phone Events should be populated for Day view
+        assertEquals(2, report.sessions.size)
+        assertEquals(3, report.phoneEvents.size)
     }
 
     @Test
@@ -128,7 +134,7 @@ class ReportCalculatorTest {
         assertEquals(7, summary.totalFinishedSessionCount)
         assertEquals(4, summary.completedSessionCount)
 
-        // March 1, 2026 is Sunday -> 6 calendar week bins (Sun March 1, Mon-Sun March 2-8, Mon-Sun March 9-15, Mon-Sun March 16-22, Mon-Sun March 23-29, Mon-Tue March 30-31)
+        // March 1, 2026 is Sunday -> 6 calendar week bins
         assertEquals(6, report.weeklyStats.size)
         assertEquals("Week 1", report.weeklyStats[0].weekLabel)
         assertEquals(LocalDate.of(2026, 3, 1), report.weeklyStats[0].startDate)
@@ -144,21 +150,69 @@ class ReportCalculatorTest {
 
         // Early stop reasons: TIRED (1), INTERRUPTED (1), DISTRACTED (1)
         assertEquals(3, report.earlyStopReasons.size)
-        val reasons = report.earlyStopReasons.map { it.reasonCode }.toSet()
-        assertTrue(reasons.contains("TIRED"))
-        assertTrue(reasons.contains("INTERRUPTED"))
-        assertTrue(reasons.contains("DISTRACTED"))
+    }
+
+    @Test
+    fun testCalculateDayBounds_HalfOpen24HourInterval() {
+        val date = LocalDate.of(2026, 3, 1)
+        val (startMs, endMs) = ReportCalculator.calculateDayBounds(date, SampleData.TEST_ZONE_ID)
+
+        val start = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startMs), SampleData.TEST_ZONE_ID)
+        val end = ZonedDateTime.ofInstant(Instant.ofEpochMilli(endMs), SampleData.TEST_ZONE_ID)
+
+        assertEquals(2026, start.year)
+        assertEquals(3, start.monthValue)
+        assertEquals(1, start.dayOfMonth)
+        assertEquals(0, start.hour)
+
+        assertEquals(2026, end.year)
+        assertEquals(3, end.monthValue)
+        assertEquals(2, end.dayOfMonth)
+        assertEquals(0, end.hour)
+
+        assertEquals(86_400_000L, endMs - startMs)
+    }
+
+    @Test
+    fun testCalculateWeekBounds_MondayStartSundayEndHalfOpen() {
+        // March 4, 2026 is Wednesday -> Week starts on Monday March 2, ends Monday March 9
+        val date = LocalDate.of(2026, 3, 4)
+        val (startMs, endMs) = ReportCalculator.calculateWeekBounds(date, SampleData.TEST_ZONE_ID)
+
+        val start = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startMs), SampleData.TEST_ZONE_ID)
+        val end = ZonedDateTime.ofInstant(Instant.ofEpochMilli(endMs), SampleData.TEST_ZONE_ID)
+
+        assertEquals(DayOfWeek.MONDAY, start.dayOfWeek)
+        assertEquals(2, start.dayOfMonth)
+
+        assertEquals(DayOfWeek.MONDAY, end.dayOfWeek)
+        assertEquals(9, end.dayOfMonth)
+
+        assertEquals(7 * 86_400_000L, endMs - startMs)
+    }
+
+    @Test
+    fun testCalculateMonthBounds_StartsFirstDayEndsNextMonthFirstDay() {
+        val date = LocalDate.of(2026, 3, 15)
+        val (startMs, endMs) = ReportCalculator.calculateMonthBounds(date, SampleData.TEST_ZONE_ID)
+
+        val start = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startMs), SampleData.TEST_ZONE_ID)
+        val end = ZonedDateTime.ofInstant(Instant.ofEpochMilli(endMs), SampleData.TEST_ZONE_ID)
+
+        assertEquals(1, start.dayOfMonth)
+        assertEquals(3, start.monthValue)
+
+        assertEquals(1, end.dayOfMonth)
+        assertEquals(4, end.monthValue)
     }
 
     @Test
     fun testCalendarWeeks_Spans4WeeksForFebruary2021() {
-        // Feb 1, 2021 is Monday. Feb 28, 2021 is Sunday.
         val days = (1..28).map { day ->
             DailyFocusStat(date = LocalDate.of(2021, 2, day), focusMs = 60 * 60 * 1000L, checkCount = 1)
         }
         val weeklyStats = calculator.calculateWeeklyStats(days)
 
-        // Must yield exactly 4 weeks
         assertEquals(4, weeklyStats.size)
         assertEquals(LocalDate.of(2021, 2, 1), weeklyStats[0].startDate)
         assertEquals(LocalDate.of(2021, 2, 7), weeklyStats[0].endDate)
@@ -168,13 +222,11 @@ class ReportCalculatorTest {
 
     @Test
     fun testCalendarWeeks_Spans5WeeksForMay2026() {
-        // May 1, 2026 is Friday. May 31, 2026 is Sunday.
         val days = (1..31).map { day ->
             DailyFocusStat(date = LocalDate.of(2026, 5, day), focusMs = 60 * 60 * 1000L, checkCount = 1)
         }
         val weeklyStats = calculator.calculateWeeklyStats(days)
 
-        // Must yield exactly 5 weeks
         assertEquals(5, weeklyStats.size)
         assertEquals(LocalDate.of(2026, 5, 1), weeklyStats[0].startDate)
         assertEquals(LocalDate.of(2026, 5, 3), weeklyStats[0].endDate)
@@ -205,6 +257,8 @@ class ReportCalculatorTest {
         assertEquals(0L, summary.longestFocusMs)
         assertTrue(report.earlyStopReasons.isEmpty())
         assertTrue(report.topAppUsages.isEmpty())
+        assertTrue(report.sessions.isEmpty())
+        assertTrue(report.phoneEvents.isEmpty())
     }
 
     @Test

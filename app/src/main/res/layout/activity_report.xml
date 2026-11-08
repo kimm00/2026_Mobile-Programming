@@ -12,7 +12,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Title & Subtitle Header -->
+        <!-- Title Header -->
         <TextView
             android:id="@+id/tvReportTitle"
             android:layout_width="wrap_content"
@@ -22,14 +22,86 @@
             android:textSize="24sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/tvReportSubtitle"
-            android:layout_width="wrap_content"
+        <!-- Period Tabs (Day / Week / Month) -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayoutPeriod"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Week of Mar 1, 2026 – Mar 7, 2026"
-            android:textColor="@color/focus_text_secondary"
-            android:textSize="14sp" />
+            android:layout_marginTop="12dp"
+            android:background="@android:color/transparent"
+            app:tabIndicatorColor="@color/focus_green_primary"
+            app:tabIndicatorHeight="3dp"
+            app:tabRippleColor="@color/focus_green_light"
+            app:tabSelectedTextColor="@color/focus_text_primary"
+            app:tabTextColor="@color/focus_text_secondary">
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Day" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Week" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Month" />
+        </com.google.android.material.tabs.TabLayout>
+
+        <!-- Date Navigation Row (< Date Label >) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnPrevPeriod"
+                style="@style/Widget.Material3.Button.Icon"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:insetLeft="0dp"
+                android:insetTop="0dp"
+                android:insetRight="0dp"
+                android:insetBottom="0dp"
+                android:padding="0dp"
+                android:text="&lt;"
+                android:textColor="@color/focus_text_primary"
+                android:textSize="18sp"
+                app:backgroundTint="@color/focus_green_light"
+                app:cornerRadius="20dp" />
+
+            <TextView
+                android:id="@+id/tvReportSubtitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textColor="@color/focus_text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                tools:text="Week of Mar 1, 2026 – Mar 7, 2026" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnNextPeriod"
+                style="@style/Widget.Material3.Button.Icon"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:insetLeft="0dp"
+                android:insetTop="0dp"
+                android:insetRight="0dp"
+                android:insetBottom="0dp"
+                android:padding="0dp"
+                android:text="&gt;"
+                android:textColor="@color/focus_text_primary"
+                android:textSize="18sp"
+                app:backgroundTint="@color/focus_green_light"
+                app:cornerRadius="20dp" />
+        </LinearLayout>
 
         <!-- Summary Metrics Cards Grid -->
         <LinearLayout
@@ -194,8 +266,48 @@
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
 
-        <!-- Chart Container Card -->
+        <!-- Day Focus Timeline Card (Visible in Day View) -->
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardDayTimeline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/focus_card_bg"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="3dp"
+            app:strokeColor="@color/focus_green_light"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Focus Timeline"
+                    android:textColor="@color/focus_text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvDayTimelineContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/focus_text_primary"
+                    android:textSize="14sp"
+                    tools:text="09:00 - 10:00 | Algorithm Study (50m focus, COMPLETED)\n  • 09:20 - 09:25 Phone Check" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Chart Container Card (Visible in Week / Month Views) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardChartContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -221,6 +333,7 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/tvChartSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"

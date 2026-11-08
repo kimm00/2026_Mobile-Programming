@@ -16,6 +16,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.temporal.TemporalAdjusters
 
 /**
  * Pure Kotlin calculator for aggregating FocusTrace metrics across Day, Week, and Month periods.
@@ -29,6 +30,35 @@ class ReportCalculator(
         const val STATUS_COMPLETED = "COMPLETED"
         const val STATUS_EARLY_STOP = "EARLY_STOP"
         const val STATUS_RUNNING = "RUNNING"
+
+        /**
+         * Calculates half-open [startMs, endMs) interval for a single day (00:00:00 to next day 00:00:00).
+         */
+        fun calculateDayBounds(date: LocalDate, zoneId: ZoneId): Pair<Long, Long> {
+            val startMs = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+            val endMs = date.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+            return Pair(startMs, endMs)
+        }
+
+        /**
+         * Calculates half-open [startMs, endMs) interval for a Monday-to-Sunday week.
+         */
+        fun calculateWeekBounds(date: LocalDate, zoneId: ZoneId): Pair<Long, Long> {
+            val monday = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            val startMs = monday.atStartOfDay(zoneId).toInstant().toEpochMilli()
+            val endMs = monday.plusWeeks(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+            return Pair(startMs, endMs)
+        }
+
+        /**
+         * Calculates half-open [startMs, endMs) interval for a calendar month (1st of month to 1st of next month).
+         */
+        fun calculateMonthBounds(date: LocalDate, zoneId: ZoneId): Pair<Long, Long> {
+            val firstDay = date.withDayOfMonth(1)
+            val startMs = firstDay.atStartOfDay(zoneId).toInstant().toEpochMilli()
+            val endMs = firstDay.plusMonths(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+            return Pair(startMs, endMs)
+        }
     }
 
     /**
@@ -51,6 +81,7 @@ class ReportCalculator(
 
         val sessionIds = finishedSessions.map { it.id }.toSet()
         val periodAppUsages = appUsages.filter { it.sessionId in sessionIds }
+        val periodPhoneEvents = phoneEvents.filter { it.sessionId in sessionIds }
 
         // 2. Summary calculations
         val summary = calculateSummary(finishedSessions)
@@ -84,7 +115,9 @@ class ReportCalculator(
             weeklyStats = weeklyStats,
             hourlyPhoneUsage = hourlyPhoneUsage,
             topAppUsages = topAppUsages,
-            earlyStopReasons = earlyStopReasons
+            earlyStopReasons = earlyStopReasons,
+            sessions = finishedSessions,
+            phoneEvents = periodPhoneEvents
         )
     }
 
