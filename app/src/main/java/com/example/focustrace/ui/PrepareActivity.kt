@@ -10,6 +10,8 @@ import com.example.focustrace.R
 import com.example.focustrace.data.db.AppDatabase
 import com.example.focustrace.data.repo.RoomSessionRepository
 import com.example.focustrace.detection.FocusService
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.launch
 
 class PrepareActivity : AppCompatActivity() {
@@ -24,17 +26,42 @@ class PrepareActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_prepare)
 
+        val tilSubject = findViewById<TextInputLayout>(R.id.til_subject)
+        val etSubject = findViewById<TextInputEditText>(R.id.et_subject)
+        val tilGoalMinutes = findViewById<TextInputLayout>(R.id.til_goal_minutes)
+        val etGoalMinutes = findViewById<TextInputEditText>(R.id.et_goal_minutes)
         val startButton = findViewById<Button>(R.id.btn_session)
 
         startButton.setOnClickListener {
+            tilSubject.error = null
+            tilGoalMinutes.error = null
+
+            val subjectText = etSubject.text?.toString()?.trim().orEmpty()
+            val goalMinutesText = etGoalMinutes.text?.toString()?.trim().orEmpty()
+            val goalMinutes = goalMinutesText.toIntOrNull()
+
+            var isValid = true
+
+            if (subjectText.isBlank()) {
+                tilSubject.error = "Subject cannot be blank"
+                isValid = false
+            }
+
+            if (goalMinutes == null || goalMinutes !in 1..360) {
+                tilGoalMinutes.error = "Goal minutes must be between 1 and 360"
+                isValid = false
+            }
+
+            if (!isValid) return@setOnClickListener
+
             startButton.isEnabled = false
 
             lifecycleScope.launch {
                 try {
                     val sessionId = repository.startSession(
-                        subject = "Study",
+                        subject = subjectText,
                         plan = null,
-                        goalMinutes = 25
+                        goalMinutes = goalMinutes!!
                     )
 
                     FocusService.startService(
