@@ -12,10 +12,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import android.util.Log
 import com.example.focustrace.R
 import com.example.focustrace.ai.AiFocusInput
 import com.example.focustrace.ai.AiInsightSampleData
 import com.example.focustrace.ai.AiInsightService
+import com.example.focustrace.ai.DefaultFirebaseAiClient
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -24,11 +26,13 @@ import kotlinx.coroutines.launch
 class AiInsightTestActivity : AppCompatActivity() {
 
     private val aiService by lazy { AiInsightService() }
+    private val rawAiClient by lazy { DefaultFirebaseAiClient() }
 
     private lateinit var rgSampleData: RadioGroup
     private lateinit var rbInsufficient: RadioButton
     private lateinit var rbHighInterruption: RadioButton
     private lateinit var swForceFallback: MaterialSwitch
+    private lateinit var btnTestMinimalCall: Button
     private lateinit var btnGenerate: Button
     private lateinit var progressLoading: ProgressBar
     private lateinit var cardResult: MaterialCardView
@@ -50,6 +54,10 @@ class AiInsightTestActivity : AppCompatActivity() {
 
         bindViews()
 
+        btnTestMinimalCall.setOnClickListener {
+            runMinimalCallTest()
+        }
+
         btnGenerate.setOnClickListener {
             runInsightGeneration()
         }
@@ -60,6 +68,7 @@ class AiInsightTestActivity : AppCompatActivity() {
         rbInsufficient = findViewById(R.id.rbInsufficient)
         rbHighInterruption = findViewById(R.id.rbHighInterruption)
         swForceFallback = findViewById(R.id.swForceFallback)
+        btnTestMinimalCall = findViewById(R.id.btnTestMinimalCall)
         btnGenerate = findViewById(R.id.btnGenerateInsights)
         progressLoading = findViewById(R.id.progressLoading)
         cardResult = findViewById(R.id.cardResult)
@@ -77,10 +86,47 @@ class AiInsightTestActivity : AppCompatActivity() {
         }
     }
 
+    private fun runMinimalCallTest() {
+        btnTestMinimalCall.isEnabled = false
+        btnGenerate.isEnabled = false
+        progressLoading.visibility = View.VISIBLE
+        cardResult.visibility = View.GONE
+
+        lifecycleScope.launch {
+            val modelName = "gemini-3.5-flash-lite"
+            val prompt = "Reply with OK"
+            try {
+                Log.d("AiTest", "Starting minimal test call: Model=$modelName, Prompt='$prompt'")
+                val responseText = rawAiClient.testMinimalCall(modelName = modelName, prompt = prompt)
+
+                cardResult.visibility = View.VISIBLE
+                chipSource.text = "Source: Gemini Minimal Call"
+                tvDuration.text = "Minimal Call OK"
+                tvInsights.text = responseText
+                tvStatusMessage.text = "Success ($modelName via Server): Response received successfully."
+            } catch (e: Exception) {
+                val exceptionClass = e.javaClass.name
+                val errorMsg = e.message ?: "No detailed error message"
+                Log.e("AiTest", "Minimal Call FAILED! Exception: $exceptionClass | Message: $errorMsg", e)
+
+                cardResult.visibility = View.VISIBLE
+                chipSource.text = "Source: Minimal Call Failure"
+                tvDuration.text = "Call Failed"
+                tvInsights.text = "Exception: $exceptionClass\nMessage: $errorMsg"
+                tvStatusMessage.text = "Failed ($modelName): [$exceptionClass] $errorMsg"
+            } finally {
+                btnTestMinimalCall.isEnabled = true
+                btnGenerate.isEnabled = true
+                progressLoading.visibility = View.GONE
+            }
+        }
+    }
+
     private fun runInsightGeneration() {
         val input = getSelectedInput()
         val forceFallback = swForceFallback.isChecked
 
+        btnTestMinimalCall.isEnabled = false
         btnGenerate.isEnabled = false
         progressLoading.visibility = View.VISIBLE
         cardResult.visibility = View.GONE
@@ -88,6 +134,7 @@ class AiInsightTestActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val result = aiService.generateInsights(input, forceFallback = forceFallback)
 
+            btnTestMinimalCall.isEnabled = true
             btnGenerate.isEnabled = true
             progressLoading.visibility = View.GONE
             cardResult.visibility = View.VISIBLE

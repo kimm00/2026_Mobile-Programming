@@ -104,10 +104,20 @@
             android:textAppearance="?attr/textAppearanceBodyMedium" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTestMinimalCall"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:padding="12dp"
+            android:text="Minimal Test Call (Local Server Proxy)"
+            android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnGenerateInsights"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="12dp"
             android:padding="12dp"
             android:text="Generate Insights"
             android:textAppearance="?attr/textAppearanceTitleMedium" />

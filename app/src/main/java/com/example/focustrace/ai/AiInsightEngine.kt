@@ -83,7 +83,7 @@ object AiInsightEngine {
      * - insights count in 2..3 non-blank strings
      * Throws IllegalArgumentException on invalid schema/content.
      */
-    fun parseAndValidateResponse(jsonString: String, modelName: String = "gemini-2.5-flash"): AiInsightResult {
+    fun parseAndValidateResponse(jsonString: String, modelName: String = "gemini-3.5-flash-lite"): AiInsightResult {
         val cleanJson = jsonString.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
 
         val durationMatch = Regex(""""recommendedDurationMinutes"\s*:\s*(\d+)""").find(cleanJson)
