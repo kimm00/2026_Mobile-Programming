@@ -103,7 +103,8 @@ class PrepareActivity : AppCompatActivity() {
 
                 FocusService.startService(
                     context = this@PrepareActivity,
-                    sessionId = sessionId
+                    sessionId = sessionId,
+                    goalMinutes = goalMinutes
                 )
 
                 val intent = Intent(
