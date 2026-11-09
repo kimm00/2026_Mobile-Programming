@@ -18,6 +18,8 @@ import com.example.focustrace.ai.AiFocusInput
 import com.example.focustrace.ai.AiInsightSampleData
 import com.example.focustrace.ai.AiInsightService
 import com.example.focustrace.ai.DefaultFirebaseAiClient
+import com.example.focustrace.ai.RoomAiFocusInputBuilder
+import com.example.focustrace.data.db.AppDatabase
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.chip.Chip
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -27,10 +29,12 @@ class AiInsightTestActivity : AppCompatActivity() {
 
     private val aiService by lazy { AiInsightService() }
     private val rawAiClient by lazy { DefaultFirebaseAiClient() }
+    private val db by lazy { AppDatabase.get(this) }
 
     private lateinit var rgSampleData: RadioGroup
     private lateinit var rbInsufficient: RadioButton
     private lateinit var rbHighInterruption: RadioButton
+    private lateinit var rbRealRoomDb: RadioButton
     private lateinit var swForceFallback: MaterialSwitch
     private lateinit var btnTestMinimalCall: Button
     private lateinit var btnGenerate: Button
@@ -67,6 +71,7 @@ class AiInsightTestActivity : AppCompatActivity() {
         rgSampleData = findViewById(R.id.rgSampleData)
         rbInsufficient = findViewById(R.id.rbInsufficient)
         rbHighInterruption = findViewById(R.id.rbHighInterruption)
+        rbRealRoomDb = findViewById(R.id.rbRealRoomDb)
         swForceFallback = findViewById(R.id.swForceFallback)
         btnTestMinimalCall = findViewById(R.id.btnTestMinimalCall)
         btnGenerate = findViewById(R.id.btnGenerateInsights)
@@ -78,10 +83,11 @@ class AiInsightTestActivity : AppCompatActivity() {
         tvStatusMessage = findViewById(R.id.tvStatusMessage)
     }
 
-    private fun getSelectedInput(): AiFocusInput {
+    private suspend fun getSelectedInput(): AiFocusInput {
         return when (rgSampleData.checkedRadioButtonId) {
             R.id.rbInsufficient -> AiInsightSampleData.SAMPLE_INSUFFICIENT
             R.id.rbHighInterruption -> AiInsightSampleData.SAMPLE_HIGH_INTERRUPTION
+            R.id.rbRealRoomDb -> RoomAiFocusInputBuilder.buildFromDao(db.sessionDao())
             else -> AiInsightSampleData.SAMPLE_SUFFICIENT
         }
     }
@@ -123,7 +129,6 @@ class AiInsightTestActivity : AppCompatActivity() {
     }
 
     private fun runInsightGeneration() {
-        val input = getSelectedInput()
         val forceFallback = swForceFallback.isChecked
 
         btnTestMinimalCall.isEnabled = false
@@ -132,6 +137,7 @@ class AiInsightTestActivity : AppCompatActivity() {
         cardResult.visibility = View.GONE
 
         lifecycleScope.launch {
+            val input = getSelectedInput()
             val result = aiService.generateInsights(input, forceFallback = forceFallback)
 
             btnTestMinimalCall.isEnabled = true

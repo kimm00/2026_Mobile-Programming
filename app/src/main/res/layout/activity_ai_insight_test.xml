@@ -93,6 +93,12 @@
                 android:layout_height="wrap_content"
                 android:text="Dataset 3: High Interruption &amp; Checks" />
 
+            <RadioButton
+                android:id="@+id/rbRealRoomDb"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Dataset 4: Real Room Database (Last 4 Weeks)" />
+
         </RadioGroup>
 
         <com.google.android.material.materialswitch.MaterialSwitch
