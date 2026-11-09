@@ -2,4 +2,13 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="focus_green_primary">#4CAF50</color>
+    <color name="focus_green_dark">#2E7D32</color>
+    <color name="focus_green_light">#E8F5E9</color>
+    <color name="focus_green_accent">#81C784</color>
+    <color name="focus_gray_background">#F8F9FA</color>
+    <color name="focus_card_bg">#FFFFFF</color>
+    <color name="focus_text_primary">#1B5E20</color>
+    <color name="focus_text_secondary">#616161</color>
+    <color name="focus_chart_grid">#E0E0E0</color>
 </resources>
