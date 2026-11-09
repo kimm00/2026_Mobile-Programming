@@ -43,7 +43,11 @@ object AiInsightEngine {
             "None recorded."
         } else {
             input.earlyStopMemos.joinToString(separator = "\n") { memo ->
-                "- Reason: [${memo.reason}] Memo: \"${memo.memo}\""
+                if (memo.memo.isNotBlank()) {
+                    "- Reason: [${memo.reason}], User Note: \"${memo.memo}\""
+                } else {
+                    "- Reason: [${memo.reason}]"
+                }
             }
         }
 
@@ -54,23 +58,25 @@ object AiInsightEngine {
             Aggregated 4-Week Focus Statistics:
             $statsText
 
-            Early Stop Notes & Memos:
+            Early Stop Reasons & Notes:
             $memoText
 
             [TASK INSTRUCTIONS]
-            Analyze the user's focus habits based strictly on the aggregated stats and early stop notes above.
-            Provide:
-            1. A recommended focus session duration in minutes (integer between 15 and 120).
-            2. Exactly 2 or 3 concise, highly actionable focus insights or advice points.
+            Analyze both the weekly focus statistics and the early stop reasons & notes together to suggest concrete actions for future sessions.
+            1. Recommend an optimal focus session duration in minutes (integer between 15 and 120).
+            2. Provide exactly 2 or 3 concise, highly actionable focus insights or advice points:
+               - If fatigue or long target durations repeat, suggest session length adjustments or scheduled stretch breaks.
+               - If external distractions, noise, urgent tasks, or phone urges repeat, suggest study environment adjustments or phone placement strategies.
+               - If user notes mention specific contexts (e.g. under 'OTHER' or custom memos), incorporate those contextual triggers into actionable advice.
 
             [STRICT JSON OUTPUT REQUIREMENT]
             Respond ONLY with a valid JSON object matching the following structure:
             {
               "recommendedDurationMinutes": 45,
               "insights": [
-                "Concise insight 1...",
-                "Concise insight 2...",
-                "Concise insight 3..."
+                "Concise actionable insight 1...",
+                "Concise actionable insight 2...",
+                "Concise actionable insight 3..."
               ]
             }
         """.trimIndent()

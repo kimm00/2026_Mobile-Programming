@@ -71,11 +71,17 @@ object RoomAiFocusInputBuilder {
             )
         }
 
-        // Per requirement, real Room DB AI requests include only weekly aggregate metrics
-        // and omit early stop memo text.
+        val earlyStopMemos = filteredSessions
+            .filter { it.status == "EARLY_STOP" && (!it.stopReason.isNullOrBlank() || !it.stopMemo.isNullOrBlank()) }
+            .map {
+                val reason = it.stopReason?.trim()?.ifBlank { "EARLY_STOP" } ?: "EARLY_STOP"
+                val memo = it.stopMemo?.trim() ?: ""
+                EarlyStopMemoInput(reason = reason, memo = memo)
+            }
+
         return AiFocusInput(
             weeklyStats = weeklyStatsList,
-            earlyStopMemos = emptyList()
+            earlyStopMemos = earlyStopMemos
         )
     }
 }
