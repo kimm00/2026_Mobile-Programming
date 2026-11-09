@@ -13,12 +13,16 @@ class AiInsightServiceTest {
         override suspend fun generateContent(prompt: String, modelName: String): String {
             return responseSupplier(prompt, modelName)
         }
+
+        override suspend fun testMinimalCall(modelName: String, prompt: String): String {
+            return responseSupplier(prompt, modelName)
+        }
     }
 
     @Test
     fun `generateInsights returns AI result when client succeeds`() = runBlocking {
         val fakeClient = FakeFirebaseAiClient { _, model ->
-            assertEquals("gemini-2.5-flash", model)
+            assertEquals(AiInsightService.DEFAULT_MODEL, model)
             """
                 {
                   "recommendedDurationMinutes": 45,
@@ -36,7 +40,7 @@ class AiInsightServiceTest {
         assertEquals("AI", result.source)
         assertEquals(45, result.recommendedDurationMinutes)
         assertEquals(2, result.insights.size)
-        assertEquals("gemini-2.5-flash", result.modelName)
+        assertEquals(AiInsightService.DEFAULT_MODEL, result.modelName)
     }
 
     @Test
@@ -49,7 +53,7 @@ class AiInsightServiceTest {
         val result = service.generateInsights(AiInsightSampleData.SAMPLE_SUFFICIENT)
 
         assertEquals("RULE_FALLBACK", result.source)
-        assertTrue(result.statusMessage?.contains("gemini-2.5-flash") == true)
+        assertTrue(result.statusMessage?.contains(AiInsightService.DEFAULT_MODEL) == true)
         assertTrue(result.statusMessage?.contains("API key invalid or quota exceeded") == true)
     }
 }

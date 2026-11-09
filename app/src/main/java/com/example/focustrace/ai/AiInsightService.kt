@@ -11,7 +11,7 @@ class AiInsightService(
     private val modelName: String = DEFAULT_MODEL
 ) {
     companion object {
-        const val DEFAULT_MODEL = "gemini-2.5-flash"
+        const val DEFAULT_MODEL = "gemini-3.5-flash-lite"
         private const val TAG = "AiInsightService"
     }
 
