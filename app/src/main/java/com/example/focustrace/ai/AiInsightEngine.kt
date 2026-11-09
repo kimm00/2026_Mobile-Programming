@@ -9,7 +9,7 @@ package com.example.focustrace.ai
  */
 object AiInsightEngine {
 
-    private const val MIN_REQUIRED_FOCUS_MINUTES = 30L
+    private const val MIN_REQUIRED_FOCUS_MINUTES = 3L
 
     /**
      * Checks if the 4-week input has sufficient data.
@@ -22,7 +22,7 @@ object AiInsightEngine {
         if (totalSessions == 0 || totalFocusMins < MIN_REQUIRED_FOCUS_MINUTES) {
             return generateRuleFallback(
                 input = input,
-                reason = "Insufficient historical focus data (< 30 minutes total focus time)"
+                reason = "Insufficient historical focus data (< $MIN_REQUIRED_FOCUS_MINUTES minutes total focus time)"
             )
         }
         return null
