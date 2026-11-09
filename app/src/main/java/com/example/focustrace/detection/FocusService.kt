@@ -206,7 +206,12 @@ class FocusService : Service() {
                     return START_NOT_STICKY
                 }
 
-                if (sessionId <= 0L || isStopping) {
+                if (sessionId <= 0L) {
+                    receiver?.send(RESULT_OK, Bundle())
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                if (isStopping) {
                     receiver?.send(RESULT_ERROR, Bundle())
                     return START_NOT_STICKY
                 }

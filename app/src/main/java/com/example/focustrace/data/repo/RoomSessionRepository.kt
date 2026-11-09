@@ -22,6 +22,8 @@ class RoomSessionRepository(
             "goalMinutes must be positive"
         }
 
+        dao.markRunningAsUnfinished(System.currentTimeMillis())
+
         val session = SessionEntity(
             subject = subject,
             plan = plan,
