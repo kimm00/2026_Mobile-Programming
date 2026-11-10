@@ -3,6 +3,10 @@
 Android app that records phone use during a focus session. **Kotlin + XML Views + Material 3** (no Compose).
 Before coding, read `docs/schema.md` (data) or `DESIGN.md` (UI) when relevant.
 
+## UI
+- Build every screen with an XML layout in res/layout. Do not use Jetpack Compose or create views in Kotlin code.
+- Access views with View Binding (as taught in class). Do not use findViewById.
+
 ## Architecture
 - Packages: `ui/`, `data/db/`, `data/repo/`, `detection/`, `ai/`, `widget/`, `tile/`, `mission/`
 - Screens use the session API in `docs/schema.md` through Repositories, never DAOs. Coroutines for DB/network, Flow for data.
@@ -17,6 +21,12 @@ Before coding, read `docs/schema.md` (data) or `DESIGN.md` (UI) when relevant.
 6. Kind: none counted → `UNLOCK_ONLY`; only allowed → `ALLOWED_ONLY`; else → `CHECK`.
 7. Session start counts as unlock. Start/end episodes with only FocusTrace are not saved.
 8. Foreground Service type `specialUse`, started only from the START button.
+
+## Session rules
+- Only one session can be RUNNING. startSession closes any leftover RUNNING session as UNFINISHED.
+- To end a session: stop FocusService, wait for RESULT_OK (last episode saved), then call endSession.
+- The running session is the RUNNING row in the database, not a value held in memory.
+- Screens get the repository with context.sessionRepository instead of creating one.
 
 ## Dependencies & secrets
 - Allowed: AndroidX, Material 3, Room, WorkManager, Firebase Auth, Firebase AI Logic, MPAndroidChart, CameraX. Ask before adding others.
