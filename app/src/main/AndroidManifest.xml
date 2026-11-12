@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -29,8 +30,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FocusTrace">
 
+        <!-- Launcher Activity: LoginActivity -->
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.LoginActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -38,8 +40,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.OnboardingActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".StretchTestActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ui.AiInsightTestActivity"
             android:exported="true" />
         <activity
             android:name=".ui.UsagePermissionActivity"
@@ -59,6 +74,15 @@
             android:exported="false" />
         <activity
             android:name=".ui.ReportActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.JournalActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.CameraActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.PhotoReviewActivity"
             android:exported="false" />
 
         <service
