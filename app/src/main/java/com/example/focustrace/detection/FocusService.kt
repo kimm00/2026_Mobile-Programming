@@ -19,8 +19,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.focustrace.FocusTraceApp
-import com.example.focustrace.MainActivity
 import com.example.focustrace.R
+import com.example.focustrace.ui.SessionActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -121,9 +121,41 @@ class FocusService : Service() {
         flags: Int,
         startId: Int
     ): Int {
+        if (intent == null || intent.action == null) {
+            startForeground(
+                NOTIFICATION_ID,
+                buildNotification(),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
 
-        when (intent?.action) {
+            serviceScope.launch {
+                val dao = (applicationContext as FocusTraceApp).database.sessionDao()
+                val runningSession = dao.getRunningSession()
 
+                if (runningSession != null) {
+                    Log.d(
+                        TAG,
+                        "Null intent restart: resuming running session id=${runningSession.id}, goalMinutes=${runningSession.goalMinutes} (previous sessionId=$sessionId)"
+                    )
+                    startOrSwitchSession(
+                        newSessionId = runningSession.id,
+                        newGoalMinutes = runningSession.goalMinutes,
+                        isResume = true
+                    )
+                } else {
+                    Log.d(
+                        TAG,
+                        "Null intent restart: no running session in DB, stopping service (sessionId=$sessionId)"
+                    )
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
+            }
+
+            return START_STICKY
+        }
+
+        when (intent.action) {
             ACTION_START_SESSION -> {
                 val requestedId = intent.getLongExtra(
                     EXTRA_SESSION_ID,
@@ -131,7 +163,7 @@ class FocusService : Service() {
                 )
 
                 if (requestedId <= 0L) {
-                    Log.e(TAG, "Invalid session ID")
+                    Log.e(TAG, "Invalid session ID: $requestedId")
                     startForeground(
                         NOTIFICATION_ID,
                         buildNotification(),
@@ -139,17 +171,31 @@ class FocusService : Service() {
                     )
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
-                    return START_NOT_STICKY
+                    return START_STICKY
                 }
+
+                val requestedGoalMinutes = intent.getIntExtra(EXTRA_GOAL_MINUTES, 0)
 
                 if (sessionId > 0L) {
-                    Log.w(TAG, "Service already running")
-                    return START_NOT_STICKY
+                    if (requestedId == sessionId) {
+                        Log.d(
+                            TAG,
+                            "START while already running: same sessionId=$sessionId, keeping running"
+                        )
+                        return START_STICKY
+                    } else {
+                        Log.d(
+                            TAG,
+                            "START while running: switching session from oldSessionId=$sessionId to newSessionId=$requestedId"
+                        )
+                        startOrSwitchSession(
+                            newSessionId = requestedId,
+                            newGoalMinutes = requestedGoalMinutes,
+                            isResume = false
+                        )
+                        return START_STICKY
+                    }
                 }
-
-                sessionId = requestedId
-                goalMinutes = intent.getIntExtra(EXTRA_GOAL_MINUTES, 0)
-                isStopping = false
 
                 startForeground(
                     NOTIFICATION_ID,
@@ -157,32 +203,11 @@ class FocusService : Service() {
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
                 )
 
-                val dao = (applicationContext as FocusTraceApp).database
-                    .sessionDao()
-
-                episodeSink = RoomEpisodeSink(
-                    sessionDao = dao,
-                    sessionId = sessionId,
-                    scope = serviceScope,
-                    packageManager = packageManager
+                startOrSwitchSession(
+                    newSessionId = requestedId,
+                    newGoalMinutes = requestedGoalMinutes,
+                    isResume = false
                 )
-
-                serviceScope.launch {
-                    allowedApps = dao.getAllowedPackages().toSet()
-
-                    episodeAnalyzer = EpisodeAnalyzer(
-                        thisPackageName = packageName,
-                        homePackageName = homePackageName,
-                        allowedPackages = allowedApps
-                    )
-
-                    lastUnlockTimeMs = System.currentTimeMillis()
-                    isSessionStartEpisode = true
-
-                    registerScreenReceiver()
-
-                    Log.d(TAG, "Started session=$sessionId, goalMinutes=$goalMinutes")
-                }
             }
 
             ACTION_STOP_SESSION -> {
@@ -202,20 +227,33 @@ class FocusService : Service() {
                 }
 
                 if (requestedId > 0L && requestedId != sessionId) {
+                    Log.w(
+                        TAG,
+                        "Stop requested for session $requestedId, but current session is $sessionId"
+                    )
                     receiver?.send(RESULT_ERROR, Bundle())
-                    return START_NOT_STICKY
+                    return START_STICKY
                 }
 
                 if (sessionId <= 0L) {
+                    Log.d(
+                        TAG,
+                        "Stop requested when service not running a valid session (sessionId=$sessionId)"
+                    )
                     receiver?.send(RESULT_OK, Bundle())
                     stopSelf()
-                    return START_NOT_STICKY
+                    return START_STICKY
                 }
                 if (isStopping) {
+                    Log.w(
+                        TAG,
+                        "Stop requested while already stopping (sessionId=$sessionId)"
+                    )
                     receiver?.send(RESULT_ERROR, Bundle())
-                    return START_NOT_STICKY
+                    return START_STICKY
                 }
 
+                Log.d(TAG, "Stopping session id=$sessionId")
                 isStopping = true
                 unregisterScreenReceiver()
 
@@ -245,9 +283,9 @@ class FocusService : Service() {
                         }
 
                         receiver?.send(RESULT_OK, Bundle())
-                        Log.d(TAG, "All episodes saved")
+                        Log.d(TAG, "All episodes saved for session id=$sessionId")
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to save episodes", e)
+                        Log.e(TAG, "Failed to save episodes for session id=$sessionId", e)
                         receiver?.send(RESULT_ERROR, Bundle())
                     } finally {
                         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -257,7 +295,52 @@ class FocusService : Service() {
             }
         }
 
-        return START_NOT_STICKY
+        return START_STICKY
+    }
+
+    private fun startOrSwitchSession(
+        newSessionId: Long,
+        newGoalMinutes: Int,
+        isResume: Boolean
+    ) {
+        sessionId = newSessionId
+        goalMinutes = newGoalMinutes
+        isStopping = false
+        lastUnlockTimeMs = System.currentTimeMillis()
+        isSessionStartEpisode = true
+
+        val dao = (applicationContext as FocusTraceApp).database.sessionDao()
+
+        episodeSink = RoomEpisodeSink(
+            sessionDao = dao,
+            sessionId = sessionId,
+            scope = serviceScope,
+            packageManager = packageManager
+        )
+
+        serviceScope.launch {
+            allowedApps = dao.getAllowedPackages().toSet()
+
+            episodeAnalyzer = EpisodeAnalyzer(
+                thisPackageName = packageName,
+                homePackageName = homePackageName,
+                allowedPackages = allowedApps
+            )
+
+            registerScreenReceiver()
+            updateNotification()
+
+            if (isResume) {
+                Log.d(TAG, "Resumed session id=$sessionId, goalMinutes=$goalMinutes")
+            } else {
+                Log.d(TAG, "Started session id=$sessionId, goalMinutes=$goalMinutes")
+            }
+        }
+    }
+
+    private fun updateNotification() {
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager?.notify(NOTIFICATION_ID, buildNotification())
     }
 
     private suspend fun performEpisodeAnalysis(
@@ -346,12 +429,16 @@ class FocusService : Service() {
     }
 
     private fun buildNotification(): Notification {
+        val intent = Intent(this, SessionActivity::class.java).apply {
+            putExtra(SessionActivity.EXTRA_SESSION_ID, sessionId)
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
         val pendingIntent = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or
-                    PendingIntent.FLAG_UPDATE_CURRENT
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
