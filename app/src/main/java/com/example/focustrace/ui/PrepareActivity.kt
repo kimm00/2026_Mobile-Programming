@@ -18,6 +18,7 @@ import com.example.focustrace.databinding.ActivityPrepareBinding
 import com.example.focustrace.detection.FocusService
 import com.example.focustrace.sessionRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -61,6 +62,29 @@ class PrepareActivity : AppCompatActivity() {
         setupStartButton()
 
         observeAllowedApps()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        checkRunningSession()
+    }
+
+    private fun checkRunningSession() {
+        lifecycleScope.launch {
+            val runningSession = repository.observeRunningSession().firstOrNull()
+            if (runningSession != null) {
+                FocusService.startService(
+                    context = this@PrepareActivity,
+                    sessionId = runningSession.id,
+                    goalMinutes = runningSession.goalMinutes
+                )
+                val intent = Intent(this@PrepareActivity, SessionActivity::class.java).apply {
+                    putExtra(SessionActivity.EXTRA_SESSION_ID, runningSession.id)
+                }
+                startActivity(intent)
+                finish()
+            }
+        }
     }
 
     private fun setupAppBar() {
@@ -222,6 +246,27 @@ class PrepareActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
+                val running = repository.observeRunningSession().firstOrNull()
+                if (running != null) {
+                    FocusService.startService(
+                        context = this@PrepareActivity,
+                        sessionId = running.id,
+                        goalMinutes = running.goalMinutes
+                    )
+                    val intent = Intent(
+                        this@PrepareActivity,
+                        SessionActivity::class.java
+                    ).apply {
+                        putExtra(
+                            SessionActivity.EXTRA_SESSION_ID,
+                            running.id
+                        )
+                    }
+                    startActivity(intent)
+                    finish()
+                    return@launch
+                }
+
                 val sessionId = repository.startSession(
                     subject = subjectText,
                     plan = planText,

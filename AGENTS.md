@@ -46,6 +46,8 @@ Before coding, read `docs/schema.md` (data) or `DESIGN.md` (UI) when relevant.
 - To end a session: stop FocusService, wait for RESULT_OK (last episode saved), then call `endSession`.
 - The running session is the RUNNING row in the database, not a value held in memory.
 - Screens get the repository with `context.sessionRepository` instead of creating one.
+- FocusService follows the RUNNING session: it switches on START with a new id and resumes it after a restart.
+- Opening the app while a session is RUNNING goes to that session, not to Prepare.
 
 ## Dependencies & secrets
 - Allowed: AndroidX, Material 3, Room, WorkManager, Firebase Auth, Credential Manager (Google Sign-In), Firebase AI Logic, Firebase Firestore, MPAndroidChart, CameraX. Ask before adding others.

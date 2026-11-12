@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ResultReceiver
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -15,6 +16,7 @@ import com.example.focustrace.data.repo.StopReason
 import com.example.focustrace.databinding.ActivitySessionBinding
 import com.example.focustrace.detection.FocusService
 import com.example.focustrace.sessionRepository
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
@@ -33,6 +35,7 @@ class SessionActivity : AppCompatActivity() {
     }
 
     private var sessionId: Long = -1L
+    private var isEnding = false
 
     private val earlyStopLauncher =
         registerForActivityResult(
@@ -87,6 +90,7 @@ class SessionActivity : AppCompatActivity() {
         }
 
         setupListeners()
+        setupBackPressHandler()
         observeActiveSession()
     }
 
@@ -102,6 +106,34 @@ class SessionActivity : AppCompatActivity() {
                 status = SessionStatus.COMPLETED
             )
         }
+    }
+
+    private fun setupBackPressHandler() {
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (isEnding || !binding.btnEarlyStop.isEnabled) {
+                        return
+                    }
+                    showBackPressDialog()
+                }
+            }
+        )
+    }
+
+    private fun showBackPressDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Session in progress")
+            .setPositiveButton("Keep going") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setNegativeButton("End early") { _, _ ->
+                earlyStopLauncher.launch(
+                    EarlyStopActivity.createIntent(this)
+                )
+            }
+            .show()
     }
 
     private fun observeActiveSession() {
@@ -122,6 +154,7 @@ class SessionActivity : AppCompatActivity() {
         reason: StopReason? = null,
         memo: String? = null
     ) {
+        isEnding = true
         binding.btnEarlyStop.isEnabled = false
         binding.btnFinish.isEnabled = false
 
@@ -155,6 +188,7 @@ class SessionActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
 
+                isEnding = false
                 binding.btnEarlyStop.isEnabled = true
                 binding.btnFinish.isEnabled = true
             }
