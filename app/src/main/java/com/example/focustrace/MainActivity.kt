@@ -16,13 +16,16 @@ import com.example.focustrace.data.model.PeriodType
 import com.example.focustrace.data.repo.ReportRepository
 import com.example.focustrace.databinding.ActivityMainBinding
 import com.example.focustrace.databinding.BottomSheetProfileBinding
+import com.example.focustrace.detection.FocusService
 import com.example.focustrace.ui.AiInsightTestActivity
 import com.example.focustrace.ui.PrepareActivity
 import com.example.focustrace.ui.ReportActivity
+import com.example.focustrace.ui.SessionActivity
 import com.example.focustrace.ui.UsagePermissionActivity
 import com.example.focustrace.ui.report.FocusBarChartBinder
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -61,11 +64,34 @@ class MainActivity : AppCompatActivity() {
         setupClickListeners()
     }
 
+    override fun onStart() {
+        super.onStart()
+        checkRunningSession()
+    }
+
     override fun onResume() {
         super.onResume()
         loadTodaySummary()
         loadWeeklyProgress()
         loadAiRecommendation()
+    }
+
+    private fun checkRunningSession() {
+        lifecycleScope.launch {
+            val runningSession = sessionRepository.observeRunningSession().firstOrNull()
+            if (runningSession != null) {
+                FocusService.startService(
+                    context = this@MainActivity,
+                    sessionId = runningSession.id,
+                    goalMinutes = runningSession.goalMinutes
+                )
+                val intent = Intent(this@MainActivity, SessionActivity::class.java).apply {
+                    putExtra(SessionActivity.EXTRA_SESSION_ID, runningSession.id)
+                }
+                startActivity(intent)
+                finish()
+            }
+        }
     }
 
     private fun setupHeaderAndGreeting() {
