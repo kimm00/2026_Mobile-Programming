@@ -5,17 +5,16 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.ResultReceiver
-import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.example.focustrace.R
-import com.example.focustrace.data.db.AppDatabase
-import com.example.focustrace.data.repo.RoomSessionRepository
+import com.example.focustrace.data.repo.SessionRepository
 import com.example.focustrace.data.repo.SessionStatus
 import com.example.focustrace.data.repo.StopReason
+import com.example.focustrace.databinding.ActivitySessionBinding
 import com.example.focustrace.detection.FocusService
+import com.example.focustrace.sessionRepository
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
@@ -27,10 +26,10 @@ class SessionActivity : AppCompatActivity() {
         const val EXTRA_SESSION_ID = "extra_session_id"
     }
 
-    private val repository by lazy {
-        RoomSessionRepository(
-            AppDatabase.get(applicationContext).sessionDao()
-        )
+    private lateinit var binding: ActivitySessionBinding
+
+    private val repository: SessionRepository by lazy {
+        sessionRepository
     }
 
     private var sessionId: Long = -1L
@@ -72,7 +71,8 @@ class SessionActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_session)
+        binding = ActivitySessionBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         sessionId = intent.getLongExtra(EXTRA_SESSION_ID, -1L)
 
@@ -86,19 +86,35 @@ class SessionActivity : AppCompatActivity() {
             return
         }
 
-        findViewById<Button>(R.id.btn_early_stop)
-            .setOnClickListener {
-                earlyStopLauncher.launch(
-                    EarlyStopActivity.createIntent(this)
-                )
-            }
+        setupListeners()
+        observeActiveSession()
+    }
 
-        findViewById<Button>(R.id.btn_finish)
-            .setOnClickListener {
-                endSession(
-                    status = SessionStatus.COMPLETED
-                )
+    private fun setupListeners() {
+        binding.btnEarlyStop.setOnClickListener {
+            earlyStopLauncher.launch(
+                EarlyStopActivity.createIntent(this)
+            )
+        }
+
+        binding.btnFinish.setOnClickListener {
+            endSession(
+                status = SessionStatus.COMPLETED
+            )
+        }
+    }
+
+    private fun observeActiveSession() {
+        lifecycleScope.launch {
+            repository.observeSession(sessionId).collect { detail ->
+                if (detail != null) {
+                    val session = detail.session
+                    binding.tvSessionSubject.text = session.subject
+                    val planText = if (!session.plan.isNullOrBlank()) "${session.plan} · " else ""
+                    binding.tvSessionGoal.text = "$planText${session.goalMinutes} min target"
+                }
             }
+        }
     }
 
     private fun endSession(
@@ -106,13 +122,8 @@ class SessionActivity : AppCompatActivity() {
         reason: StopReason? = null,
         memo: String? = null
     ) {
-        val earlyStopButton =
-            findViewById<Button>(R.id.btn_early_stop)
-        val finishButton =
-            findViewById<Button>(R.id.btn_finish)
-
-        earlyStopButton.isEnabled = false
-        finishButton.isEnabled = false
+        binding.btnEarlyStop.isEnabled = false
+        binding.btnFinish.isEnabled = false
 
         lifecycleScope.launch {
             try {
@@ -131,12 +142,10 @@ class SessionActivity : AppCompatActivity() {
                     stopMemo = memo
                 )
 
-                startActivity(
-                    Intent(
-                        this@SessionActivity,
-                        FinishActivity::class.java
-                    )
-                )
+                val intent = Intent(this@SessionActivity, FinishActivity::class.java).apply {
+                    putExtra(FinishActivity.EXTRA_SESSION_ID, sessionId)
+                }
+                startActivity(intent)
 
                 finish()
             } catch (e: Exception) {
@@ -146,8 +155,8 @@ class SessionActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
 
-                earlyStopButton.isEnabled = true
-                finishButton.isEnabled = true
+                binding.btnEarlyStop.isEnabled = true
+                binding.btnFinish.isEnabled = true
             }
         }
     }

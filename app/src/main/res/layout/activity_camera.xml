@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/camera_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121212"
+    android:orientation="vertical"
+    tools:context=".ui.CameraActivity">
+
+    <!-- Top Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp">
+
+        <ImageView
+            android:id="@+id/btn_close"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Close"
+            android:padding="6dp"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="@color/white" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:text="Take Completion Photo"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/btn_flash"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Flash"
+            android:padding="6dp"
+            android:src="@drawable/ic_sparkles"
+            app:tint="@color/white" />
+    </LinearLayout>
+
+    <!-- Viewfinder / Framing Guide Box -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginVertical="12dp"
+        android:layout_weight="1"
+        android:background="@drawable/bg_rounded_card"
+        android:backgroundTint="#222222">
+
+        <!-- Instruction Banner -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_status_badge"
+            android:backgroundTint="#40FFFFFF"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp"
+            android:text="Align your study space &amp; notes"
+            android:textColor="@color/white"
+            android:textSize="13sp" />
+
+        <!-- Mascot Viewfinder Graphic -->
+        <ImageView
+            android:layout_width="160dp"
+            android:layout_height="130dp"
+            android:layout_gravity="center"
+            android:alpha="0.8"
+            android:contentDescription="Mascot Viewfinder"
+            android:src="@drawable/ic_trace_calm_stone" />
+
+        <!-- Overlay Stamp -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_margin="16dp"
+            android:background="@drawable/bg_status_badge"
+            android:backgroundTint="#80000000"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:contentDescription="Stamp Icon"
+                android:src="@drawable/ic_trace_calm_stone" />
+
+            <TextView
+                android:id="@+id/tv_camera_stamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="FocusTrace · Biology · 45m"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+    </FrameLayout>
+
+    <!-- Bottom Controls Area -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingBottom="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="48dp"
+                android:layout_height="48dp" />
+
+            <!-- Shutter Button -->
+            <FrameLayout
+                android:id="@+id/btn_shutter"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_marginHorizontal="32dp"
+                android:background="@drawable/bg_profile_avatar"
+                android:backgroundTint="@color/focus_brand_green"
+                android:clickable="true"
+                android:focusable="true">
+
+                <View
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_profile_avatar"
+                    android:backgroundTint="@color/white" />
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/btn_flip"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Flip Camera"
+                android:padding="10dp"
+                android:src="@drawable/ic_info"
+                app:tint="@color/white" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="CameraX UI Preview · Optional Photo Verification"
+            android:textColor="#A0A0A0"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+
+</LinearLayout>

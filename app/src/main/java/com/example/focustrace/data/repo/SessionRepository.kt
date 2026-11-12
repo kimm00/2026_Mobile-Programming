@@ -53,4 +53,13 @@ interface SessionRepository {
 
     /** Called by AllowList screen to add or remove an app from the allowed study apps list. */
     suspend fun setAllowed(packageName: String, appLabel: String, allowed: Boolean)
+
+    /** Called by JournalActivity and AI Insights to query session history without accessing DAO directly. */
+    suspend fun getSessionsByPeriod(
+        startTime: Long = 0L,
+        endTime: Long = Long.MAX_VALUE
+    ): List<SessionEntity>
+
+    /** Called by JournalActivity to update reflection notes for a session. */
+    suspend fun updateSessionReflection(sessionId: Long, reflection: String?)
 }

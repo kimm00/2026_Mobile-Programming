@@ -4,14 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
-import android.widget.RadioGroup
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.focustrace.R
-import com.google.android.material.textfield.TextInputEditText
+import com.example.focustrace.databinding.ActivityEarlyStopBinding
 
 /**
  * F-04: Early Stop Reason Selection UI
@@ -43,42 +41,35 @@ class EarlyStopActivity : AppCompatActivity() {
         }
     }
 
-    private lateinit var rgReasons: RadioGroup
-    private lateinit var etNote: TextInputEditText
-    private lateinit var btnSave: Button
+    private lateinit var binding: ActivityEarlyStopBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContentView(R.layout.activity_early_stop)
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.earlyStopRoot)) { v, insets ->
+        binding = ActivityEarlyStopBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.earlyStopRoot) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
 
-        initViews()
         setupListeners()
         updateSaveButtonState()
     }
 
-    private fun initViews() {
-        rgReasons = findViewById(R.id.rgReasons)
-        etNote = findViewById(R.id.etNote)
-        btnSave = findViewById(R.id.btnSave)
-    }
-
     private fun setupListeners() {
         // Single choice selection listener
-        rgReasons.setOnCheckedChangeListener { _, _ ->
+        binding.rgReasons.setOnCheckedChangeListener { _, _ ->
             updateSaveButtonState()
         }
 
         // Save & Continue button click listener
-        btnSave.setOnClickListener {
+        binding.btnSave.setOnClickListener {
             val reasonCode = getSelectedReasonCode() ?: return@setOnClickListener
-            val rawNote = etNote.text?.toString()?.trim()
+            val rawNote = binding.etNote.text?.toString()?.trim()
             val optionalNote = if (rawNote.isNullOrEmpty()) null else {
                 if (rawNote.length > 300) rawNote.substring(0, 300) else rawNote
             }
@@ -97,11 +88,11 @@ class EarlyStopActivity : AppCompatActivity() {
     }
 
     private fun updateSaveButtonState() {
-        btnSave.isEnabled = getSelectedReasonCode() != null
+        binding.btnSave.isEnabled = getSelectedReasonCode() != null
     }
 
     private fun getSelectedReasonCode(): String? {
-        return when (rgReasons.checkedRadioButtonId) {
+        return when (binding.rgReasons.checkedRadioButtonId) {
             R.id.rbDistracted -> REASON_DISTRACTED
             R.id.rbTired -> REASON_TIRED
             R.id.rbInterrupted -> REASON_INTERRUPTED
