@@ -2,13 +2,24 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="focus_green_primary">#4CAF50</color>
-    <color name="focus_green_dark">#2E7D32</color>
-    <color name="focus_green_light">#E8F5E9</color>
-    <color name="focus_green_accent">#81C784</color>
-    <color name="focus_gray_background">#F8F9FA</color>
-    <color name="focus_card_bg">#FFFFFF</color>
-    <color name="focus_text_primary">#1B5E20</color>
-    <color name="focus_text_secondary">#616161</color>
-    <color name="focus_chart_grid">#E0E0E0</color>
+
+    <!-- FocusTrace Theme Colors from Figma Design -->
+    <color name="focus_bg_light">#EDF7E3</color>
+    <color name="focus_border_green">#C2E3A4</color>
+    <color name="focus_text_dark">#45593A</color>
+    <color name="focus_brand_green">#88C26C</color>
+    <color name="focus_surface_white">#FFFFFF</color>
+    <color name="focus_divider">#C2E3A4</color>
+    <color name="focus_scrim">#80000000</color>
+
+    <!-- Legacy compatibility colors -->
+    <color name="focus_green_primary">#88C26C</color>
+    <color name="focus_green_dark">#45593A</color>
+    <color name="focus_green_light">#EDF7E3</color>
+    <color name="focus_green_accent">#C2E3A4</color>
+    <color name="focus_gray_background">#EDF7E3</color>
+    <color name="focus_card_bg">#EDF7E3</color>
+    <color name="focus_text_primary">#45593A</color>
+    <color name="focus_text_secondary">#708264</color>
+    <color name="focus_chart_grid">#C2E3A4</color>
 </resources>

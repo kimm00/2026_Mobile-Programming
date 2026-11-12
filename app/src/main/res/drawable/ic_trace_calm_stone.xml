@@ -1,0 +1,39 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="160dp"
+    android:viewportWidth="200"
+    android:viewportHeight="160">
+
+  <!-- Stone Body -->
+  <path
+      android:fillColor="#D2DACB"
+      android:pathData="M100,10 C160,10 190,60 190,110 C190,145 150,155 100,155 C50,155 10,145 10,110 C10,60 40,10 100,10 Z" />
+
+  <!-- Top Highlight -->
+  <path
+      android:fillColor="#B7CBAA"
+      android:pathData="M100,10 C145,10 175,45 170,75 C150,45 110,30 100,30 C90,30 50,45 30,75 C25,45 55,10 100,10 Z" />
+
+  <!-- Left Blush -->
+  <path
+      android:fillColor="#F6B8A2"
+      android:pathData="M45,95 C55,95 55,105 45,105 C35,105 35,95 45,95 Z" />
+
+  <!-- Right Blush -->
+  <path
+      android:fillColor="#F6B8A2"
+      android:pathData="M155,95 C165,95 165,105 155,105 C145,105 145,95 155,95 Z" />
+
+  <!-- Sleeping Eyes -->
+  <path
+      android:strokeColor="#2E3C27"
+      android:strokeWidth="4"
+      android:strokeLineCap="round"
+      android:pathData="M65,85 Q75,95 85,85" />
+
+  <path
+      android:strokeColor="#2E3C27"
+      android:strokeWidth="4"
+      android:strokeLineCap="round"
+      android:pathData="M115,85 Q125,95 135,85" />
+</vector>
