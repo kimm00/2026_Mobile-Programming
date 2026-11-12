@@ -26,6 +26,9 @@ abstract class SessionDao {
         stopMemo: String?
     )
 
+    @Query("UPDATE sessions SET reflection = :reflection WHERE id = :sessionId")
+    abstract suspend fun updateSessionReflection(sessionId: Long, reflection: String?)
+
     @Query("UPDATE sessions SET focusMs = :focusMs, phoneUseMs = :phoneUseMs, checkCount = :checkCount, unlockOnlyCount = :unlockOnlyCount, longestFocusMs = :longestFocusMs WHERE id = :sessionId")
     abstract suspend fun updateSessionSummary(
         sessionId: Long,

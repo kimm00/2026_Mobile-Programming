@@ -212,4 +212,15 @@ class RoomSessionRepository(
             dao.deleteAllowedApp(packageName)
         }
     }
+
+    override suspend fun getSessionsByPeriod(
+        startTime: Long,
+        endTime: Long
+    ): List<SessionEntity> {
+        return dao.getSessionsByPeriod(startTime, endTime)
+    }
+
+    override suspend fun updateSessionReflection(sessionId: Long, reflection: String?) {
+        dao.updateSessionReflection(sessionId, reflection)
+    }
 }
