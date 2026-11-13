@@ -247,7 +247,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:background="@drawable/bg_rounded_card_white"
+                android:background="@drawable/bg_rounded_card"
                 android:orientation="vertical"
                 android:padding="16dp">
 
@@ -259,12 +259,84 @@
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:background="#88C46A" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="Focus"
+                        android:textColor="@color/focus_text_dark" />
+
+                    <View
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_marginStart="24dp"
+                        android:background="#FFAE8C" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="Phone"
+                        android:textColor="@color/focus_text_dark" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/timeline_bar"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="0 min"
+                        android:textColor="@color/focus_text_dark"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tv_timeline_middle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:textColor="@color/focus_text_dark"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tv_timeline_end"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="end"
+                        android:textColor="@color/focus_text_dark"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
                 <TextView
                     android:id="@+id/tv_timeline_summary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="No phone interruptions recorded."
+                    android:layout_marginTop="12dp"
                     android:textColor="@color/focus_text_secondary"
                     android:textSize="13sp" />
             </LinearLayout>
