@@ -101,7 +101,9 @@ class SessionActivity : AppCompatActivity() {
     private fun setupListeners() {
         binding.btnEarlyStop.setOnClickListener {
             earlyStopLauncher.launch(
-                EarlyStopActivity.createIntent(this)
+                EarlyStopActivity.createIntent(this).apply {
+                    putExtra(SessionActivity.EXTRA_SESSION_ID, sessionId)
+                }
             )
         }
 
