@@ -65,9 +65,13 @@
             <FrameLayout
                 android:layout_width="220dp"
                 android:layout_height="220dp"
-                android:layout_marginTop="20dp"
-                android:background="@drawable/bg_profile_avatar"
-                android:backgroundTint="@color/focus_surface_white">
+                android:layout_marginTop="20dp">
+
+                <com.example.focustrace.ui.CountdownRingView
+                    android:id="@+id/countdown_ring"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:importantForAccessibility="no" />
 
                 <LinearLayout
                     android:layout_width="wrap_content"
@@ -80,7 +84,7 @@
                         android:id="@+id/tv_remaining_time"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="38:12"
+                        android:text="00:00"
                         android:textColor="@color/focus_text_dark"
                         android:textSize="44sp"
                         android:textStyle="bold" />
@@ -92,6 +96,7 @@
                         android:textColor="@color/focus_text_secondary"
                         android:textSize="13sp" />
                 </LinearLayout>
+
             </FrameLayout>
 
             <!-- Mascot Stone -->
