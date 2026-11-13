@@ -166,24 +166,7 @@ class FinishActivity : AppCompatActivity() {
         bindTimeline(session, usages)
 
         // Top Distractions
-        val countedUsages = usages.filter { it.isCounted && !it.isAllowed }
-        if (countedUsages.isEmpty()) {
-            binding.tvDistractionsContent.text = "Nothing pulled you away this time."
-        } else {
-            val appUsageMap = countedUsages.groupBy { it.appLabel }
-                .mapValues { entry -> entry.value.sumOf { it.durationMs } }
-                .toList()
-                .sortedByDescending { it.second }
-
-            val sb = StringBuilder()
-            appUsageMap.take(3).forEachIndexed { index, pair ->
-                val mins = pair.second / 60000
-                val secs = (pair.second % 60000) / 1000
-                val timeStr = if (mins > 0) "${mins}m ${secs}s" else "${secs}s"
-                sb.append("${index + 1}. ${pair.first}: $timeStr\n")
-            }
-            binding.tvDistractionsContent.text = sb.toString().trim()
-        }
+        bindDistractions(usages)
 
         // Session Summary
         binding.tvAiSummaryContent.text = if (session.status == "COMPLETED") {
@@ -372,6 +355,140 @@ class FinishActivity : AppCompatActivity() {
             "No counted phone usage recorded during this session."
         } else {
             "Tap a phone segment to see details."
+        }
+    }
+
+    private fun bindDistractions(usages: List<AppUsageEntity>) {
+        val container = binding.layoutDistractions
+        container.removeAllViews()
+
+        fun dp(value: Int): Int =
+            (value * resources.displayMetrics.density).toInt()
+
+        val textColor = Color.parseColor("#45593A")
+
+        // Group by package name to keep each app in one row.
+        val topApps = usages
+            .filter { it.isCounted && !it.isAllowed && it.durationMs > 0L }
+            .groupBy { it.packageName }
+            .entries
+            .sortedByDescending { entry ->
+                entry.value.sumOf { it.durationMs }
+            }
+            .take(3)
+
+        if (topApps.isEmpty()) {
+            container.addView(
+                android.widget.TextView(this).apply {
+                    text = "Nothing pulled you away this time."
+                    textSize = 13f
+                    setTextColor(textColor)
+                }
+            )
+            return
+        }
+
+        topApps.forEachIndexed { index, entry ->
+            val packageName = entry.key
+            val appUsages = entry.value
+            val appName = appUsages
+                .firstOrNull { it.appLabel.isNotBlank() }
+                ?.appLabel ?: packageName
+
+            val durationMs = appUsages.sumOf { it.durationMs }
+
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+
+                setPadding(0, dp(10), 0, dp(10))
+            }
+
+            val rankView = android.widget.TextView(this).apply {
+                text = "${index + 1}"
+                textSize = 14f
+                setTextColor(textColor)
+                gravity = android.view.Gravity.CENTER
+
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.parseColor("#FFAE8C"))
+                }
+
+                layoutParams = LinearLayout.LayoutParams(dp(28), dp(28))
+            }
+
+            val iconView = android.widget.ImageView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    dp(40),
+                    dp(40)
+                ).apply {
+                    marginStart = dp(12)
+                    marginEnd = dp(12)
+                }
+
+                scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+
+                // The adjacent app name already describes this icon.
+                importantForAccessibility =
+                    View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }
+
+            // Fall back to a generic icon if the app cannot be resolved.
+            val appIcon = try {
+                packageManager.getApplicationIcon(packageName)
+            } catch (
+                e: android.content.pm.PackageManager.NameNotFoundException
+            ) {
+                packageManager.defaultActivityIcon
+            }
+
+            iconView.setImageDrawable(appIcon)
+
+            val textColumn = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    1f
+                )
+            }
+
+            val nameView = android.widget.TextView(this).apply {
+                text = appName
+                textSize = 16f
+                setTextColor(textColor)
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }
+
+            val durationView = android.widget.TextView(this).apply {
+                text = formatTimelineTime(durationMs)
+                textSize = 14f
+                setTextColor(textColor)
+
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = dp(4)
+                }
+            }
+
+            textColumn.addView(nameView)
+            textColumn.addView(durationView)
+
+            row.addView(rankView)
+            row.addView(iconView)
+            row.addView(textColumn)
+
+            container.addView(row)
         }
     }
 

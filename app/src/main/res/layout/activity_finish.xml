@@ -358,14 +358,13 @@
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/tv_distractions_content"
+                <LinearLayout
+                    android:id="@+id/layout_distractions"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="Nothing pulled you away this time."
-                    android:textColor="@color/focus_text_secondary"
-                    android:textSize="13sp" />
+                    android:orientation="vertical" />
+
             </LinearLayout>
 
             <!-- Card 4: One-line Reflection / Journal -->
