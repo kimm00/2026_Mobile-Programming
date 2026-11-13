@@ -23,6 +23,7 @@ import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import java.util.Locale
 
 class SessionActivity : AppCompatActivity() {
 
@@ -169,18 +170,40 @@ class SessionActivity : AppCompatActivity() {
                     return@collect
                 }
 
-                val deadline =
-                    session.startAt + session.goalMinutes * 60_000L
+                val totalMs = session.goalMinutes * 60_000L
+                val deadline = session.startAt + totalMs
 
                 autoFinishJob = lifecycleScope.launch {
-                    val remainingMs =
-                        (deadline - System.currentTimeMillis())
-                            .coerceAtLeast(0L)
+                    var lastDisplayedSeconds = -1L
 
-                    delay(remainingMs)
+                    while (!isEnding) {
+                        // Calculate from the original deadline to avoid cumulative drift.
+                        val remainingMs = (deadline - System.currentTimeMillis())
+                            .coerceIn(0L, totalMs)
 
-                    if (!isEnding) {
-                        endSession(status = SessionStatus.COMPLETED)
+                        // Round up so 00:00 is shown only when the session has ended.
+                        val remainingSeconds = (remainingMs + 999L) / 1000L
+
+                        if (remainingSeconds != lastDisplayedSeconds) {
+                            binding.tvRemainingTime.text = String.format(
+                                Locale.US,
+                                "%02d:%02d",
+                                remainingSeconds / 60L,
+                                remainingSeconds % 60L
+                            )
+                            lastDisplayedSeconds = remainingSeconds
+                        }
+
+                        binding.countdownRing.setRemainingFraction(
+                            remainingMs.toFloat() / totalMs
+                        )
+
+                        if (remainingMs == 0L) {
+                            endSession(status = SessionStatus.COMPLETED)
+                            break
+                        }
+
+                        delay(50L)
                     }
                 }
             }
