@@ -57,27 +57,24 @@ class EarlyStopActivity : AppCompatActivity() {
         }
 
         setupListeners()
-        updateSaveButtonState()
     }
 
     private fun setupListeners() {
-        // Single choice selection listener
-        binding.rgReasons.setOnCheckedChangeListener { _, _ ->
-            updateSaveButtonState()
+        // "Continue Session" button dismisses sheet without stopping session
+        binding.btnContinueSession.setOnClickListener {
+            finish()
         }
 
-        // Save & Continue button click listener
+        // "End Session" button saves reason & note and finishes with RESULT_OK
         binding.btnSave.setOnClickListener {
-            val reasonCode = getSelectedReasonCode() ?: return@setOnClickListener
+            val reasonCode = getSelectedReasonCode() ?: REASON_DISTRACTED
             val rawNote = binding.etNote.text?.toString()?.trim()
             val optionalNote = if (rawNote.isNullOrEmpty()) null else {
                 if (rawNote.length > 300) rawNote.substring(0, 300) else rawNote
             }
 
-            // Log collected values for testing
             Log.d(TAG, "Early Stop Saved - Reason: $reasonCode, Note: ${optionalNote ?: "(none)"}")
 
-            // Set result for calling activity
             val resultIntent = Intent().apply {
                 putExtra(EXTRA_STOP_REASON, reasonCode)
                 putExtra(EXTRA_STOP_MEMO, optionalNote)
@@ -87,18 +84,14 @@ class EarlyStopActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateSaveButtonState() {
-        binding.btnSave.isEnabled = getSelectedReasonCode() != null
-    }
-
     private fun getSelectedReasonCode(): String? {
         return when (binding.rgReasons.checkedRadioButtonId) {
-            R.id.rbDistracted -> REASON_DISTRACTED
-            R.id.rbTired -> REASON_TIRED
-            R.id.rbInterrupted -> REASON_INTERRUPTED
             R.id.rbTaskCompleted -> REASON_TASK_COMPLETED
+            R.id.rbDistracted -> REASON_DISTRACTED
+            R.id.rbInterrupted -> REASON_INTERRUPTED
+            R.id.rbTired -> REASON_TIRED
             R.id.rbOther -> REASON_OTHER
-            else -> null
+            else -> REASON_DISTRACTED
         }
     }
 }
