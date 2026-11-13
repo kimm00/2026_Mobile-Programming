@@ -11,7 +11,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.example.focustrace.R
 import com.example.focustrace.data.db.entity.AllowedAppEntity
 import com.example.focustrace.data.repo.SessionRepository
 import com.example.focustrace.databinding.ActivityPrepareBinding
@@ -104,7 +103,7 @@ class PrepareActivity : AppCompatActivity() {
         binding.npMinutes.apply {
             minValue = 0
             maxValue = 59
-            value = 45
+            value = 0
             setOnValueChangedListener { _, _, _ -> updateDurationSummary() }
         }
 

@@ -10,6 +10,10 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.focustrace.R
 import com.example.focustrace.databinding.ActivityEarlyStopBinding
+import androidx.lifecycle.lifecycleScope
+import com.example.focustrace.sessionRepository
+import com.example.focustrace.data.repo.SessionStatus
+import kotlinx.coroutines.launch
 
 /**
  * F-04: Early Stop Reason Selection UI
@@ -57,6 +61,7 @@ class EarlyStopActivity : AppCompatActivity() {
         }
 
         setupListeners()
+        observeSessionEnd()
     }
 
     private fun setupListeners() {
@@ -92,6 +97,29 @@ class EarlyStopActivity : AppCompatActivity() {
             R.id.rbTired -> REASON_TIRED
             R.id.rbOther -> REASON_OTHER
             else -> REASON_DISTRACTED
+        }
+    }
+
+    private fun observeSessionEnd() {
+        val sessionId = intent.getLongExtra(
+            SessionActivity.EXTRA_SESSION_ID,
+            -1L
+        )
+
+        if (sessionId <= 0L) return
+
+        lifecycleScope.launch {
+            sessionRepository.observeSession(sessionId).collect { detail ->
+                val session = detail?.session ?: return@collect
+
+                // Close this screen when the session has already ended.
+                if (session.status != SessionStatus.RUNNING.name &&
+                    !isFinishing
+                ) {
+                    setResult(RESULT_CANCELED)
+                    finish()
+                }
+            }
         }
     }
 }

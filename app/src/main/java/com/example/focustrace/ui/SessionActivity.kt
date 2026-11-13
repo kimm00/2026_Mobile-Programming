@@ -21,6 +21,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 class SessionActivity : AppCompatActivity() {
 
@@ -36,6 +38,8 @@ class SessionActivity : AppCompatActivity() {
 
     private var sessionId: Long = -1L
     private var isEnding = false
+
+    private var autoFinishJob: Job? = null
 
     private val earlyStopLauncher =
         registerForActivityResult(
@@ -97,7 +101,9 @@ class SessionActivity : AppCompatActivity() {
     private fun setupListeners() {
         binding.btnEarlyStop.setOnClickListener {
             earlyStopLauncher.launch(
-                EarlyStopActivity.createIntent(this)
+                EarlyStopActivity.createIntent(this).apply {
+                    putExtra(SessionActivity.EXTRA_SESSION_ID, sessionId)
+                }
             )
         }
 
@@ -139,11 +145,43 @@ class SessionActivity : AppCompatActivity() {
     private fun observeActiveSession() {
         lifecycleScope.launch {
             repository.observeSession(sessionId).collect { detail ->
-                if (detail != null) {
-                    val session = detail.session
-                    binding.tvSessionSubject.text = session.subject
-                    val planText = if (!session.plan.isNullOrBlank()) "${session.plan} · " else ""
-                    binding.tvSessionGoal.text = "$planText${session.goalMinutes} min target"
+                if (detail == null) return@collect
+
+                val session = detail.session
+
+                binding.tvSessionSubject.text = session.subject
+
+                val planText = if (!session.plan.isNullOrBlank()) {
+                    "${session.plan} / "
+                } else {
+                    ""
+                }
+
+                binding.tvSessionGoal.text =
+                    "$planText${session.goalMinutes} min target"
+
+                if (session.status != SessionStatus.RUNNING.name) {
+                    autoFinishJob?.cancel()
+                    return@collect
+                }
+
+                if (isEnding || autoFinishJob != null) {
+                    return@collect
+                }
+
+                val deadline =
+                    session.startAt + session.goalMinutes * 60_000L
+
+                autoFinishJob = lifecycleScope.launch {
+                    val remainingMs =
+                        (deadline - System.currentTimeMillis())
+                            .coerceAtLeast(0L)
+
+                    delay(remainingMs)
+
+                    if (!isEnding) {
+                        endSession(status = SessionStatus.COMPLETED)
+                    }
                 }
             }
         }
@@ -154,7 +192,12 @@ class SessionActivity : AppCompatActivity() {
         reason: StopReason? = null,
         memo: String? = null
     ) {
+        if (isEnding) return
+
         isEnding = true
+        autoFinishJob?.cancel()
+        autoFinishJob = null
+
         binding.btnEarlyStop.isEnabled = false
         binding.btnFinish.isEnabled = false
 
