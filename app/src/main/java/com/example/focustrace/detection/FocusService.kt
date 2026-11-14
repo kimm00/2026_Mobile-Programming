@@ -1,5 +1,6 @@
 package com.example.focustrace.detection
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -20,12 +21,14 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.focustrace.FocusTraceApp
 import com.example.focustrace.R
+import com.example.focustrace.data.db.entity.RefocusAlertEntity
 import com.example.focustrace.ui.SessionActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -52,6 +55,13 @@ class FocusService : Service() {
     private lateinit var episodeAnalyzer: EpisodeAnalyzer
     private lateinit var episodeSink: EpisodeSink
 
+    private var refocusTracker: RefocusTracker? = null
+    private var refocusMonitoringJob: Job? = null
+    private var activeAlertId: Long? = null
+    private var activeAlertPackageName: String? = null
+    private var activeAlertFiredAt: Long = 0L
+    private var lastRefocusCheckTimeMs: Long = 0L
+
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (isStopping) return
@@ -61,10 +71,12 @@ class FocusService : Service() {
             when (intent?.action) {
                 Intent.ACTION_USER_PRESENT -> {
                     lastUnlockTimeMs = now
+                    startRefocusMonitoring(now)
                     Log.d(TAG, "USER_PRESENT: $now")
                 }
 
                 Intent.ACTION_SCREEN_OFF -> {
+                    stopRefocusMonitoring(now)
                     if (lastUnlockTimeMs == 0L) return
 
                     val unlockTime = lastUnlockTimeMs
@@ -261,6 +273,8 @@ class FocusService : Service() {
                 val finalEndTime = System.currentTimeMillis()
                 val finalStartFlag = isSessionStartEpisode
 
+                stopRefocusMonitoring(finalEndTime)
+
                 lastUnlockTimeMs = 0L
 
                 serviceScope.launch {
@@ -306,8 +320,11 @@ class FocusService : Service() {
         sessionId = newSessionId
         goalMinutes = newGoalMinutes
         isStopping = false
-        lastUnlockTimeMs = System.currentTimeMillis()
+        val now = System.currentTimeMillis()
+        lastUnlockTimeMs = now
         isSessionStartEpisode = true
+
+        stopRefocusMonitoring(now)
 
         val dao = (applicationContext as FocusTraceApp).database.sessionDao()
 
@@ -327,8 +344,17 @@ class FocusService : Service() {
                 allowedPackages = allowedApps
             )
 
+            val excludedApps = setOfNotNull(packageName, homePackageName, "com.android.systemui")
+            refocusTracker = RefocusTracker(
+                refocusLimitMs = REFOCUS_LIMIT_MS,
+                allowedApps = allowedApps,
+                excludedApps = excludedApps
+            )
+
             registerScreenReceiver()
             updateNotification()
+
+            startRefocusMonitoring(now)
 
             if (isResume) {
                 Log.d(TAG, "Resumed session id=$sessionId, goalMinutes=$goalMinutes")
@@ -336,6 +362,121 @@ class FocusService : Service() {
                 Log.d(TAG, "Started session id=$sessionId, goalMinutes=$goalMinutes")
             }
         }
+    }
+
+    private fun closeActiveRefocusAlert(leftAtMs: Long) {
+        val alertId = activeAlertId ?: return
+        activeAlertId = null
+        activeAlertPackageName = null
+        activeAlertFiredAt = 0L
+        serviceScope.launch {
+            val dao = (applicationContext as FocusTraceApp).database.sessionDao()
+            dao.updateRefocusAlertLeftAt(alertId, leftAtMs)
+        }
+    }
+
+    private fun stopRefocusMonitoring(leftAtMs: Long) {
+        refocusMonitoringJob?.cancel()
+        refocusMonitoringJob = null
+        closeActiveRefocusAlert(leftAtMs)
+        refocusTracker?.onScreenOff()
+    }
+
+    private fun startRefocusMonitoring(unlockTimeMs: Long) {
+        refocusMonitoringJob?.cancel()
+        lastRefocusCheckTimeMs = unlockTimeMs
+
+        val tracker = refocusTracker ?: return
+        tracker.onUnlock(unlockTimeMs)
+
+        refocusMonitoringJob = serviceScope.launch {
+            val dao = (applicationContext as FocusTraceApp).database.sessionDao()
+
+            while (isActive) {
+                delay(REFOCUS_CHECK_INTERVAL_MS)
+                if (!isActive) break
+
+                val now = System.currentTimeMillis()
+                val queryStart = (lastRefocusCheckTimeMs - REFOCUS_OVERLAP_MS).coerceAtLeast(0L)
+                val events = UsageStatsHelper.queryActivityResumedEvents(
+                    context = applicationContext,
+                    startTimeMs = queryStart,
+                    endTimeMs = now
+                )
+                lastRefocusCheckTimeMs = now
+
+                val alertPkg = activeAlertPackageName
+                if (activeAlertId != null && alertPkg != null) {
+                    val leaveEvent = events.firstOrNull {
+                        it.packageName != alertPkg && it.timestampMs >= activeAlertFiredAt
+                    }
+                    if (leaveEvent != null) {
+                        closeActiveRefocusAlert(leaveEvent.timestampMs)
+                    }
+                }
+
+                val alert = tracker.processEvents(events, now)
+                if (alert != null && sessionId > 0L) {
+                    val alertEntity = RefocusAlertEntity(
+                        sessionId = sessionId,
+                        packageName = alert.packageName,
+                        firedAt = now,
+                        usedMsBeforeAlert = alert.durationMs,
+                        leftAt = null
+                    )
+                    val insertedId = dao.insertRefocusAlert(alertEntity)
+                    activeAlertId = insertedId
+                    activeAlertPackageName = alert.packageName
+                    activeAlertFiredAt = now
+
+                    showRefocusNotification(alert.packageName)
+                }
+            }
+        }
+    }
+
+    private fun showRefocusNotification(packageName: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permission = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+            if (permission != PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Notification permission not granted, skipping refocus notification")
+                return
+            }
+        }
+
+        val appLabel = try {
+            val appInfo = packageManager.getApplicationInfo(packageName, 0)
+            packageManager.getApplicationLabel(appInfo).toString()
+        } catch (e: Exception) {
+            packageName
+        }
+
+        val intent = Intent(this, SessionActivity::class.java).apply {
+            putExtra(SessionActivity.EXTRA_SESSION_ID, sessionId)
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            1,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(this, REFOCUS_CHANNEL_ID)
+            .setContentTitle("Back to focus?")
+            .setContentText("You've been on $appLabel for 3 min.")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+
+        getSystemService(NotificationManager::class.java)
+            ?.notify(REFOCUS_NOTIFICATION_ID, notification)
     }
 
     private fun updateNotification() {
@@ -409,6 +550,7 @@ class FocusService : Service() {
 
     override fun onDestroy() {
         unregisterScreenReceiver()
+        stopRefocusMonitoring(System.currentTimeMillis())
         serviceJob.cancel()
         super.onDestroy()
     }
@@ -416,7 +558,9 @@ class FocusService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
+        val notificationManager = getSystemService(NotificationManager::class.java) ?: return
+
+        val sessionChannel = NotificationChannel(
             CHANNEL_ID,
             "FocusTrace Session",
             NotificationManager.IMPORTANCE_LOW
@@ -424,8 +568,16 @@ class FocusService : Service() {
             description = "Phone usage monitoring"
         }
 
-        getSystemService(NotificationManager::class.java)
-            ?.createNotificationChannel(channel)
+        val refocusChannel = NotificationChannel(
+            REFOCUS_CHANNEL_ID,
+            "Refocus Alert",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Refocus alerts for non-allowed app usage"
+        }
+
+        notificationManager.createNotificationChannel(sessionChannel)
+        notificationManager.createNotificationChannel(refocusChannel)
     }
 
     private fun buildNotification(): Notification {
@@ -467,6 +619,11 @@ class FocusService : Service() {
 
         private const val CHANNEL_ID = "focus_trace_service_channel"
         private const val NOTIFICATION_ID = 1001
+        private const val REFOCUS_CHANNEL_ID = "refocus_alert_channel"
+        private const val REFOCUS_NOTIFICATION_ID = 2002
+        private const val REFOCUS_CHECK_INTERVAL_MS = 15_000L
+        private const val REFOCUS_LIMIT_MS = 3 * 60 * 1000L
+        private const val REFOCUS_OVERLAP_MS = 5_000L
         private const val ANALYSIS_DELAY_MS = 1500L
         private const val TAG = "FocusTrace_Service"
 
