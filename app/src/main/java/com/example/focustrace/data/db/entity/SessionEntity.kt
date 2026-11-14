@@ -30,5 +30,8 @@ data class SessionEntity(
     val phoneUseMs: Long = 0L,
     val checkCount: Int = 0,
     val unlockOnlyCount: Int = 0,
-    val longestFocusMs: Long = 0L
+    val longestFocusMs: Long = 0L,
+    val earphoneMs: Long = 0L,
+    val faceDownMs: Long = 0L,
+    val journalPostId: String? = null
 )

@@ -8,6 +8,7 @@ import com.example.focustrace.data.db.dao.SessionDao
 import com.example.focustrace.data.db.entity.AiInsightEntity
 import com.example.focustrace.data.db.entity.AllowedAppEntity
 import com.example.focustrace.data.db.entity.AppUsageEntity
+import com.example.focustrace.data.db.entity.DeviceStateEntity
 import com.example.focustrace.data.db.entity.PhoneEventEntity
 import com.example.focustrace.data.db.entity.RefocusAlertEntity
 import com.example.focustrace.data.db.entity.SessionEntity
@@ -22,8 +23,9 @@ import com.example.focustrace.data.db.entity.StretchMissionEntity
         RefocusAlertEntity::class,
         StretchMissionEntity::class,
         AiInsightEntity::class,
+        DeviceStateEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
