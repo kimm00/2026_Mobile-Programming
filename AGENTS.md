@@ -27,6 +27,7 @@ Before coding, read `docs/schema.md` (data) or `DESIGN.md` (UI) when relevant.
 
 ### Rules
 - Screens call Repository functions only, never a DAO or Firestore directly.
+- `detection/` writes episodes, device states, and refocus alerts through `SessionDao` directly. Session start and end go through the repository.
 - Use coroutines for database and network work, and Flow for data that screens observe.
 - `EpisodeAnalyzer` and everything in `domain/` are pure Kotlin (no Android imports).
 - Changes to entities, DAOs, or `AppDatabase` need A's review (Room schema owner).

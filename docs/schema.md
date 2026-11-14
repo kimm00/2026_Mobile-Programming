@@ -248,18 +248,20 @@ Screens call these through `context.sessionRepository`. Implementation: `RoomSes
 | Function | Purpose |
 | --- | --- |
 | `startSession(subject, plan, goalMinutes, suggestedMinutes = null, acceptedAiSuggestion = false)` → `sessionId` | closes any leftover `RUNNING` session as `UNFINISHED`, then inserts the new one. The caller starts `FocusService` with the id |
-| `endSession(sessionId, status, stopReason = null, stopMemo = null, endAt = null)` | computes the summary and saves it with the end fields. `endAt` defaults to now; auto-complete passes `startAt + goalMinutes`. Returns without error if the session is missing or not `RUNNING`. Uploads the backup when logged in |
+| `endSession(sessionId, status, stopReason = null, stopMemo = null, endAt = null)` | computes the summary and saves it with the end fields in one transaction. `endAt` defaults to now; auto-complete passes `startAt + goalMinutes`. Returns without error if the session is missing or not `RUNNING`. (planned, C) uploads the backup when logged in |
 | `observeRunningSession()` → `Flow<SessionEntity?>` | running session or null |
 | `observeSession(sessionId)` → `Flow<SessionDetail?>` | session → episodes → app usages |
+| `getSessionsByPeriod(startTime = 0, endTime = Long.MAX_VALUE)` → `List<SessionEntity>` | **v2.** finished, non-sample sessions that started in the range (calendar, journal, AI) |
 | `observeAllowedApps()` / `setAllowed(packageName, appLabel, allowed)` | allow list |
 | `recoverUnfinishedSessions()` | closes `RUNNING` sessions as `UNFINISHED` |
 | `savePhoto(sessionId, photoUri)` | **v2.** completion photo (F-08) |
-| `saveReflection(sessionId, reflection)` | **v2.** wrap-up note |
+| `updateSessionReflection(sessionId, reflection)` | **v2.** wrap-up note |
 | `saveJournalPostId(sessionId, postId)` | **v2.** Save to Journal |
-| `startDeviceState(sessionId, type)` / `endDeviceState(sessionId, type)` | **v2.** called from `detection/` |
-| `restoreFromBackupIfEmpty()` | **v2.** after login, if the local database has no sessions, downloads the backup |
+| `restoreFromBackupIfEmpty()` | **v2, planned (C).** after login, if the local database has no sessions, downloads the backup. DAO ready: `countSessions`, `insertSessions` |
 
 Ending order (also in AGENTS.md): stop `FocusService`, wait for `RESULT_OK` (last episode saved), then call `endSession`.
+
+`detection/` writes episodes and device states through `SessionDao` directly (not through the repository).
 
 Report queries (track B) may live in a separate DAO or repository. Exclude `isSample = 1` rows from real stats.
 
