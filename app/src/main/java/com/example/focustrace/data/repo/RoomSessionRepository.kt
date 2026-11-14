@@ -239,6 +239,10 @@ class RoomSessionRepository(
         return dao.observeAllowedApps()
     }
 
+    override fun observeSubjects(): Flow<List<String>> {
+        return dao.observeSubjects()
+    }
+
     override suspend fun setAllowed(
         packageName: String,
         appLabel: String,
