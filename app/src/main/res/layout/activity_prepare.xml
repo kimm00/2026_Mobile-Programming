@@ -145,29 +145,31 @@
                     android:textSize="15sp"
                     android:textStyle="bold" />
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/til_subject"
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                <RelativeLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="52dp"
                     android:layout_marginTop="6dp"
-                    app:boxBackgroundColor="@color/focus_surface_white"
-                    app:boxStrokeColor="@color/focus_border_green"
-                    app:boxCornerRadiusBottomEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusTopStart="12dp">
+                    android:background="@drawable/bg_spinner_subject"
+                    android:paddingHorizontal="12dp">
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_subject"
+                    <Spinner
+                        android:id="@+id/spinner_subject"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="e.g. Biology, Programming"
-                        android:inputType="text"
-                        android:textColor="@color/focus_text_dark"
-                        android:textSize="15sp" />
+                        android:layout_height="match_parent"
+                        android:layout_toStartOf="@id/iv_spinner_arrow"
+                        android:background="@android:color/transparent"
+                        android:spinnerMode="dropdown" />
 
-                </com.google.android.material.textfield.TextInputLayout>
+                    <ImageView
+                        android:id="@+id/iv_spinner_arrow"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:contentDescription="Dropdown"
+                        android:src="@drawable/ic_chevron_down"
+                        app:tint="@color/focus_text_dark" />
+                </RelativeLayout>
 
                 <!-- One-line Plan Input -->
                 <TextView
