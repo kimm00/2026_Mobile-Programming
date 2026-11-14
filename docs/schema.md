@@ -1,9 +1,17 @@
-# FocusTrace — Room Schema
+# FocusTrace — Room Schema (v2)
 
 Owner: track A. Change entities only after updating this file.
+Database version: **2**.
+
+## Changes from v1
+- New table `device_states` (earphones, face-down).
+- `sessions`: new columns `earphoneMs`, `faceDownMs`, `journalPostId`.
+- `COMPLETED` now always means the goal time was reached (auto-complete).
+- Session API updated to match the code (see below), plus backup and restore through Firestore.
+- Version 2 uses destructive migration in development: updating deletes local data on each device.
 
 ## Conventions
-- Times: `Long` epoch ms. Durations: `...Ms`. Status/kind values: `String`.
+- Times: `Long` epoch ms. Durations: `...Ms`. Status/kind/type values: `String`.
 - Day/week/month boundaries are computed in the device time zone.
 - Child rows are deleted with their session (`onDelete = CASCADE`). Index every foreign key and `sessions.startAt`.
 
@@ -15,6 +23,7 @@ erDiagram
     phone_events ||--o{ app_usages : "contains"
     sessions ||--o{ refocus_alerts : "has"
     sessions ||--o{ stretch_missions : "has"
+    sessions ||--o{ device_states : "has"
     sessions |o--o{ ai_insights : "summarized by"
 
     sessions {
@@ -37,6 +46,9 @@ erDiagram
         Int checkCount
         Int unlockOnlyCount
         Long longestFocusMs
+        Long earphoneMs "v2"
+        Long faceDownMs "v2"
+        String journalPostId "v2, nullable"
     }
     phone_events {
         Long id PK
@@ -56,6 +68,13 @@ erDiagram
         Boolean isAllowed
         Boolean isAuto
         Boolean isCounted
+    }
+    device_states {
+        Long id PK
+        Long sessionId FK
+        String type
+        Long startAt
+        Long endAt "nullable"
     }
     allowed_apps {
         String packageName PK
@@ -103,21 +122,32 @@ erDiagram
 | `goalMinutes` | Int | |
 | `startAt` | Long | |
 | `endAt` | Long? | null while running |
-| `status` | String | `RUNNING` / `COMPLETED` / `EARLY_STOP` / `UNFINISHED` |
+| `status` | String | see Status below |
 | `stopReason` | String? | `DISTRACTED` / `TIRED` / `INTERRUPTED` / `TASK_COMPLETED` / `OTHER` |
 | `stopMemo` | String? | |
 | `reflection` | String? | wrap-up note |
-| `photoUri` | String? | app-private storage (C) |
+| `photoUri` | String? | completion photo location (C) |
 | `suggestedMinutes` | Int? | AI-suggested length; null if AI suggestion not used |
 | `acceptedAiSuggestion` | Boolean | whether the user accepted the AI suggestion |
-| `isSample` | Boolean | demo sample data, kept separate from real stats |
+| `isSample` | Boolean | demo sample data, kept out of real stats |
 | `focusMs` | Long | summary, set by `endSession()` |
 | `phoneUseMs` | Long | summary |
 | `checkCount` | Int | summary |
 | `unlockOnlyCount` | Int | summary |
 | `longestFocusMs` | Long | summary |
+| `earphoneMs` | Long | **v2.** summary, time with earphones connected |
+| `faceDownMs` | Long | **v2.** summary, time with the phone face down |
+| `journalPostId` | String? | **v2.** board post this session was saved to (Save to Journal) |
 
 Summary columns stay 0 while `RUNNING`. For live values of a running session (e.g. widget), count its `phone_events` directly.
+
+**Status**
+| status | Meaning |
+| --- | --- |
+| `RUNNING` | In progress. Only one at a time |
+| `COMPLETED` | Goal time reached. Set by `FocusService` with `endAt = startAt + goalMinutes` |
+| `EARLY_STOP` | Ended by the user before the goal, with a reason |
+| `UNFINISHED` | Closed without ending (app killed, new session started) |
 
 ### `phone_events` — one episode (unlock → screen off)
 | Column | Type | Note |
@@ -141,6 +171,17 @@ Summary columns stay 0 while `RUNNING`. For live values of a running session (e.
 | `isAllowed` | Boolean | allow-list state at save time |
 | `isAuto` | Boolean | reappeared on unlock |
 | `isCounted` | Boolean | false = pass |
+
+### `device_states` — earphones and face-down during a session (v2)
+| Column | Type | Note |
+| --- | --- | --- |
+| `id` | Long PK auto | |
+| `sessionId` | Long FK | |
+| `type` | String | `EARPHONE` / `FACE_DOWN` |
+| `startAt` | Long | connected / turned face down |
+| `endAt` | Long? | disconnected / turned face up. Null while it continues |
+
+Used for reports and analysis, e.g. phone checks with and without earphones.
 
 ### `allowed_apps`
 | Column | Type |
@@ -183,25 +224,53 @@ Summary columns stay 0 while `RUNNING`. For live values of a running session (e.
 | `source` | String | `AI` / `RULE_FALLBACK` |
 | `model` | String? | |
 
-AI consent is a setting (DataStore), not a table.
+Settings (AI consent, earphone start suggestion on/off, last suggestion time) live in DataStore, not in tables.
 
 ## Calculations
+All summary values are computed in `endSession()` and saved in one transaction.
+
 | Value | Rule |
 | --- | --- |
-| `phoneUseMs` | sum of `durationMs` where `isCounted` and not `isAllowed` |
-| `focusMs` | (`endAt` − `startAt`) − `phoneUseMs` |
+| `phoneUseMs` | total of app usage intervals where `isCounted` and not `isAllowed`, merged so overlaps count once, clipped to the session |
+| `focusMs` | (`endAt` − `startAt`) − `phoneUseMs`. Allowed-app time counts as focus |
 | `checkCount` | episodes with `kind = CHECK` |
-| `longestFocusMs` | longest gap between session start, `CHECK` episodes, and session end |
+| `unlockOnlyCount` | episodes with `kind = UNLOCK_ONLY` |
+| `longestFocusMs` | longest gap between session start, counted phone-use intervals, and session end |
+| `earphoneMs` | total of `EARPHONE` rows, clipped to the session |
+| `faceDownMs` | total of `FACE_DOWN` rows, clipped to the session |
 | checks per focus hour | `SUM(checkCount) / SUM(focusMs) × 3,600,000` |
 
+Rows in `device_states` with `endAt = null` are closed at the session end time.
+
 ## Session API (track A)
+Screens call these through `context.sessionRepository`. Implementation: `RoomSessionRepository`.
+
 | Function | Purpose |
 | --- | --- |
-| `startSession(subject, plan, goalMinutes, suggestedMinutes = null, acceptedAiSuggestion = false)` → `sessionId` | insert session, start `FocusService` |
-| `endSession(sessionId, status, stopReason: StopReason?, stopMemo?)` | stop service, close open episode, write summary |
-| `observeRunningSession()` → `Flow<Session?>` | running session or null |
-| `observeSession(sessionId)` → `Flow<SessionDetail>` | session + episodes + app usages |
-| `getAllowedApps()` / `setAllowed(packageName, allowed)` | allow list |
-| `recoverUnfinishedSessions()` | on app start, close `RUNNING` sessions as `UNFINISHED` |
+| `startSession(subject, plan, goalMinutes, suggestedMinutes = null, acceptedAiSuggestion = false)` → `sessionId` | closes any leftover `RUNNING` session as `UNFINISHED`, then inserts the new one. The caller starts `FocusService` with the id |
+| `endSession(sessionId, status, stopReason = null, stopMemo = null, endAt = null)` | computes the summary and saves it with the end fields. `endAt` defaults to now; auto-complete passes `startAt + goalMinutes`. Returns without error if the session is missing or not `RUNNING`. Uploads the backup when logged in |
+| `observeRunningSession()` → `Flow<SessionEntity?>` | running session or null |
+| `observeSession(sessionId)` → `Flow<SessionDetail?>` | session → episodes → app usages |
+| `observeAllowedApps()` / `setAllowed(packageName, appLabel, allowed)` | allow list |
+| `recoverUnfinishedSessions()` | closes `RUNNING` sessions as `UNFINISHED` |
+| `savePhoto(sessionId, photoUri)` | **v2.** completion photo (F-08) |
+| `saveReflection(sessionId, reflection)` | **v2.** wrap-up note |
+| `saveJournalPostId(sessionId, postId)` | **v2.** Save to Journal |
+| `startDeviceState(sessionId, type)` / `endDeviceState(sessionId, type)` | **v2.** called from `detection/` |
+| `restoreFromBackupIfEmpty()` | **v2.** after login, if the local database has no sessions, downloads the backup |
 
-Report queries (track B) may live in a separate DAO. Exclude `isSample = 1` rows from real stats.
+Ending order (also in AGENTS.md): stop `FocusService`, wait for `RESULT_OK` (last episode saved), then call `endSession`.
+
+Report queries (track B) may live in a separate DAO or repository. Exclude `isSample = 1` rows from real stats.
+
+## Firestore backup and restore (v2)
+- When a session ends and the user is logged in, `endSession` adds one document to `users/{uid}/sessions`
+  (Firestore creates the document id): subject, goalMinutes, startAt, endAt, status, stopReason,
+  focusMs, checkCount, earphoneMs.
+- Never uploaded: `phone_events`, `app_usages`, `device_states`, plan, reflection, photo.
+- Not logged in at the end: the session is not backed up. Offline: Firestore sends the write later.
+- Restore: only when the local database has no sessions (new phone or reinstall). Restored sessions
+  have summaries only, so reports and the calendar work but the Focus Timeline is empty.
+- Deleting a session in the app does not delete its backup.
+- Firestore code lives in `data/remote/` (`SessionBackup`). The current uid comes from a small
+  `CurrentUser` interface (C). Journal board posts are separate: `users/{uid}/posts`.
