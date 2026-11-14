@@ -119,6 +119,9 @@ abstract class SessionDao {
     @Query("SELECT * FROM allowed_apps ORDER BY appLabel ASC")
     abstract fun observeAllowedApps(): Flow<List<AllowedAppEntity>>
 
+    @Query("SELECT subject FROM sessions WHERE TRIM(subject) != '' GROUP BY subject ORDER BY MAX(startAt) DESC")
+    abstract fun observeSubjects(): Flow<List<String>>
+
     @Query("SELECT packageName FROM allowed_apps")
     abstract suspend fun getAllowedPackages(): List<String>
 

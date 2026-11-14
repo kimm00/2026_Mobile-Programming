@@ -5,6 +5,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -14,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.focustrace.data.db.entity.AllowedAppEntity
 import com.example.focustrace.data.repo.SessionRepository
 import com.example.focustrace.databinding.ActivityPrepareBinding
+import com.example.focustrace.databinding.DialogAddSubjectBinding
 import com.example.focustrace.detection.FocusService
 import com.example.focustrace.sessionRepository
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +38,12 @@ class PrepareActivity : AppCompatActivity() {
     private var pendingSubject: String? = null
     private var pendingPlan: String? = null
     private var pendingGoalMinutes: Int? = null
+
+    private val defaultSubjects = listOf("Programming", "Math", "English")
+    private val addSubjectOption = "+ Add subject"
+    private val subjectList = mutableListOf<String>()
+    private lateinit var subjectAdapter: ArrayAdapter<String>
+    private var selectedSubjectPosition = 0
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -56,6 +66,7 @@ class PrepareActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupAppBar()
+        setupSubjectSpinner()
         setupDurationPickers()
         setupAllowListCard()
         setupStartButton()
@@ -89,6 +100,100 @@ class PrepareActivity : AppCompatActivity() {
     private fun setupAppBar() {
         binding.btnBack.setOnClickListener {
             finish()
+        }
+    }
+
+    private fun setupSubjectSpinner() {
+        subjectAdapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            subjectList
+        )
+        binding.spinnerSubject.adapter = subjectAdapter
+
+        binding.spinnerSubject.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (subjectList.getOrNull(position) == addSubjectOption) {
+                    showAddSubjectDialog()
+                } else {
+                    selectedSubjectPosition = position
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        observeSubjects()
+    }
+
+    private fun observeSubjects() {
+        lifecycleScope.launch {
+            repository.observeSubjects().collect { pastSubjects ->
+                val currentSelected = subjectList.getOrNull(selectedSubjectPosition)
+                val userAdded = subjectList.filter {
+                    it != addSubjectOption && it !in defaultSubjects && it !in pastSubjects
+                }
+                val combined = (defaultSubjects + pastSubjects + userAdded).distinct()
+
+                subjectList.clear()
+                subjectList.addAll(combined)
+                subjectList.add(addSubjectOption)
+
+                subjectAdapter.notifyDataSetChanged()
+
+                val newPos = if (currentSelected != null && subjectList.contains(currentSelected)) {
+                    subjectList.indexOf(currentSelected)
+                } else {
+                    0
+                }
+                selectedSubjectPosition = newPos
+                binding.spinnerSubject.setSelection(newPos)
+            }
+        }
+    }
+
+    private fun showAddSubjectDialog() {
+        val dialogBinding = DialogAddSubjectBinding.inflate(layoutInflater)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .setPositiveButton("Add", null)
+            .setNegativeButton("Cancel") { _, _ ->
+                binding.spinnerSubject.setSelection(selectedSubjectPosition)
+            }
+            .setOnCancelListener {
+                binding.spinnerSubject.setSelection(selectedSubjectPosition)
+            }
+            .create()
+
+        dialog.show()
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val newSubject = dialogBinding.etNewSubject.text?.toString()?.trim().orEmpty()
+            if (newSubject.isBlank()) {
+                dialogBinding.tilNewSubject.error = "Subject cannot be blank"
+                return@setOnClickListener
+            }
+            dialogBinding.tilNewSubject.error = null
+
+            val existingIndex = subjectList.indexOfFirst { it.equals(newSubject, ignoreCase = true) }
+            if (existingIndex != -1 && subjectList[existingIndex] != addSubjectOption) {
+                selectedSubjectPosition = existingIndex
+                binding.spinnerSubject.setSelection(existingIndex)
+            } else {
+                val addIndex = subjectList.indexOf(addSubjectOption)
+                if (addIndex != -1) {
+                    subjectList.add(addIndex, newSubject)
+                    selectedSubjectPosition = addIndex
+                } else {
+                    subjectList.add(newSubject)
+                    selectedSubjectPosition = subjectList.size - 1
+                }
+                subjectAdapter.notifyDataSetChanged()
+                binding.spinnerSubject.setSelection(selectedSubjectPosition)
+            }
+
+            dialog.dismiss()
         }
     }
 
@@ -200,10 +305,15 @@ class PrepareActivity : AppCompatActivity() {
 
     private fun setupStartButton() {
         binding.btnSession.setOnClickListener {
-            binding.tilSubject.error = null
             binding.tilPlan.error = null
 
-            val subjectText = binding.etSubject.text?.toString()?.trim().orEmpty()
+            val selectedItem = binding.spinnerSubject.selectedItem?.toString()
+            if (selectedItem == null || selectedItem == addSubjectOption) {
+                Toast.makeText(this, "Please select a subject", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val subjectText = selectedItem
             val planText = binding.etPlan.text?.toString()?.trim().orEmpty().ifBlank { null }
 
             val hours = binding.npHours.value
@@ -211,11 +321,6 @@ class PrepareActivity : AppCompatActivity() {
             val goalMinutes = (hours * 60) + minutes
 
             var isValid = true
-
-            if (subjectText.isBlank()) {
-                binding.tilSubject.error = "Subject cannot be blank"
-                isValid = false
-            }
 
             if (goalMinutes < 1) {
                 Toast.makeText(this, "Target duration must be at least 1 minute", Toast.LENGTH_SHORT).show()

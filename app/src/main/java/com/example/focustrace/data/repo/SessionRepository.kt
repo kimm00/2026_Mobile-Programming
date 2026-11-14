@@ -52,6 +52,9 @@ interface SessionRepository {
     /** Called by AllowList screen and PrepareActivity to observe the user-allowed study apps list. */
     fun observeAllowedApps(): Flow<List<AllowedAppEntity>>
 
+    /** Called by PrepareActivity to observe past distinct session subjects. */
+    fun observeSubjects(): Flow<List<String>>
+
     /** Called by AllowList screen to add or remove an app from the allowed study apps list. */
     suspend fun setAllowed(packageName: String, appLabel: String, allowed: Boolean)
 
