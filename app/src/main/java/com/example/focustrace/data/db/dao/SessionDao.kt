@@ -9,6 +9,7 @@ import com.example.focustrace.data.db.entity.AllowedAppEntity
 import com.example.focustrace.data.db.entity.AppUsageEntity
 import com.example.focustrace.data.db.entity.DeviceStateEntity
 import com.example.focustrace.data.db.entity.PhoneEventEntity
+import com.example.focustrace.data.db.entity.RefocusAlertEntity
 import com.example.focustrace.data.db.entity.SessionEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -178,4 +179,10 @@ abstract class SessionDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun insertSessions(sessions: List<SessionEntity>)
+
+    @Insert
+    abstract suspend fun insertRefocusAlert(alert: RefocusAlertEntity): Long
+
+    @Query("UPDATE refocus_alerts SET leftAt = :leftAt WHERE id = :alertId AND leftAt IS NULL")
+    abstract suspend fun updateRefocusAlertLeftAt(alertId: Long, leftAt: Long)
 }
