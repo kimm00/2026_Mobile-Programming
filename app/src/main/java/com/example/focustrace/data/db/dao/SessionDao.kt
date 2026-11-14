@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.example.focustrace.data.db.entity.AllowedAppEntity
 import com.example.focustrace.data.db.entity.AppUsageEntity
+import com.example.focustrace.data.db.entity.DeviceStateEntity
 import com.example.focustrace.data.db.entity.PhoneEventEntity
 import com.example.focustrace.data.db.entity.SessionEntity
 import kotlinx.coroutines.flow.Flow
@@ -23,21 +24,63 @@ abstract class SessionDao {
         endAt: Long,
         status: String,
         stopReason: String?,
-        stopMemo: String?
+        stopMemo: String?,
     )
 
     @Query("UPDATE sessions SET reflection = :reflection WHERE id = :sessionId")
     abstract suspend fun updateSessionReflection(sessionId: Long, reflection: String?)
 
-    @Query("UPDATE sessions SET focusMs = :focusMs, phoneUseMs = :phoneUseMs, checkCount = :checkCount, unlockOnlyCount = :unlockOnlyCount, longestFocusMs = :longestFocusMs WHERE id = :sessionId")
+    @Query("UPDATE sessions SET photoUri = :photoUri WHERE id = :sessionId")
+    abstract suspend fun updateSessionPhoto(sessionId: Long, photoUri: String?)
+
+    @Query("UPDATE sessions SET journalPostId = :postId WHERE id = :sessionId")
+    abstract suspend fun updateJournalPostId(sessionId: Long, postId: String?)
+
+    @Query("UPDATE sessions SET focusMs = :focusMs, phoneUseMs = :phoneUseMs, checkCount = :checkCount, unlockOnlyCount = :unlockOnlyCount, longestFocusMs = :longestFocusMs, earphoneMs = :earphoneMs, faceDownMs = :faceDownMs WHERE id = :sessionId")
     abstract suspend fun updateSessionSummary(
         sessionId: Long,
         focusMs: Long,
         phoneUseMs: Long,
         checkCount: Int,
         unlockOnlyCount: Int,
-        longestFocusMs: Long
+        longestFocusMs: Long,
+        earphoneMs: Long,
+        faceDownMs: Long,
     )
+
+    @Transaction
+    open suspend fun finishSession(
+        sessionId: Long,
+        endAt: Long,
+        status: String,
+        stopReason: String?,
+        stopMemo: String?,
+        focusMs: Long,
+        phoneUseMs: Long,
+        checkCount: Int,
+        unlockOnlyCount: Int,
+        longestFocusMs: Long,
+        earphoneMs: Long,
+        faceDownMs: Long,
+    ) {
+        updateSessionSummary(
+            sessionId = sessionId,
+            focusMs = focusMs,
+            phoneUseMs = phoneUseMs,
+            checkCount = checkCount,
+            unlockOnlyCount = unlockOnlyCount,
+            longestFocusMs = longestFocusMs,
+            earphoneMs = earphoneMs,
+            faceDownMs = faceDownMs,
+        )
+        updateSessionEnd(
+            sessionId = sessionId,
+            endAt = endAt,
+            status = status,
+            stopReason = stopReason,
+            stopMemo = stopMemo
+        )
+    }
 
     @Insert
     abstract suspend fun insertPhoneEvent(event: PhoneEventEntity): Long
@@ -88,6 +131,7 @@ abstract class SessionDao {
         WHERE startAt >= :startTime
           AND startAt < :endTime
           AND status != 'RUNNING'
+          AND isSample = 0
         ORDER BY startAt DESC
     """)
     abstract suspend fun getSessionsByPeriod(
@@ -115,4 +159,22 @@ abstract class SessionDao {
 
     @Query("SELECT * FROM sessions WHERE id = :sessionId LIMIT 1")
     abstract suspend fun getSessionById(sessionId: Long): SessionEntity?
+
+    @Insert
+    abstract suspend fun insertDeviceState(state: DeviceStateEntity): Long
+
+    @Query("UPDATE device_states SET endAt = :endAt WHERE sessionId = :sessionId AND type = :type AND endAt IS NULL")
+    abstract suspend fun closeDeviceState(sessionId: Long, type: String, endAt: Long)
+
+    @Query("UPDATE device_states SET endAt = :endAt WHERE sessionId = :sessionId AND endAt IS NULL")
+    abstract suspend fun closeOpenDeviceStates(sessionId: Long, endAt: Long)
+
+    @Query("SELECT * FROM device_states WHERE sessionId = :sessionId ORDER BY startAt ASC")
+    abstract suspend fun getDeviceStates(sessionId: Long): List<DeviceStateEntity>
+
+    @Query("SELECT COUNT(*) FROM sessions")
+    abstract suspend fun countSessions(): Int
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    abstract suspend fun insertSessions(sessions: List<SessionEntity>)
 }
