@@ -18,14 +18,14 @@ abstract class SessionDao {
     @Insert
     abstract suspend fun insertSession(session: SessionEntity): Long
 
-    @Query("UPDATE sessions SET endAt = :endAt, status = :status, stopReason = :stopReason, stopMemo = :stopMemo WHERE id = :sessionId")
+    @Query("UPDATE sessions SET endAt = :endAt, status = :status, stopReason = :stopReason, stopMemo = :stopMemo WHERE id = :sessionId AND status = 'RUNNING'")
     abstract suspend fun updateSessionEnd(
         sessionId: Long,
         endAt: Long,
         status: String,
         stopReason: String?,
         stopMemo: String?,
-    )
+    ) : Int
 
     @Query("UPDATE sessions SET reflection = :reflection WHERE id = :sessionId")
     abstract suspend fun updateSessionReflection(sessionId: Long, reflection: String?)
@@ -62,7 +62,14 @@ abstract class SessionDao {
         longestFocusMs: Long,
         earphoneMs: Long,
         faceDownMs: Long,
-    ) {
+    ) { val changed = updateSessionEnd(
+        sessionId = sessionId,
+        endAt = endAt,
+        status = status,
+        stopReason = stopReason,
+        stopMemo = stopMemo,
+    )
+    if (changed == 1) {
         updateSessionSummary(
             sessionId = sessionId,
             focusMs = focusMs,
@@ -73,13 +80,7 @@ abstract class SessionDao {
             earphoneMs = earphoneMs,
             faceDownMs = faceDownMs,
         )
-        updateSessionEnd(
-            sessionId = sessionId,
-            endAt = endAt,
-            status = status,
-            stopReason = stopReason,
-            stopMemo = stopMemo
-        )
+    }
     }
 
     @Insert

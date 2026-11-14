@@ -37,6 +37,7 @@ interface SessionRepository {
         status: SessionStatus,
         stopReason: StopReason? = null,
         stopMemo: String? = null,
+        endAt: Long? = null,
     )
 
     /** Called by SessionActivity and App Widget to observe the currently active RUNNING session. */
@@ -57,9 +58,15 @@ interface SessionRepository {
     /** Called by JournalActivity and AI Insights to query session history without accessing DAO directly. */
     suspend fun getSessionsByPeriod(
         startTime: Long = 0L,
-        endTime: Long = Long.MAX_VALUE
+        endTime: Long = Long.MAX_VALUE,
     ): List<SessionEntity>
 
-    /** Called by JournalActivity to update reflection notes for a session. */
+    /** Called by FinishActivity or PhotoReviewActivity to save the completion photo URI. */
+    suspend fun savePhoto(sessionId: Long, photoUri: String?)
+
+    /** Called by FinishActivity or JournalActivity to update reflection notes for a session. */
     suspend fun updateSessionReflection(sessionId: Long, reflection: String?)
+
+    /** Called by FinishActivity to link a session to a personal board journal post. */
+    suspend fun saveJournalPostId(sessionId: Long, postId: String?)
 }
