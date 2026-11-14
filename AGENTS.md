@@ -15,7 +15,7 @@ Before coding, read `docs/schema.md` (data) or `DESIGN.md` (UI) when relevant.
 | `ui/` | Activities and screens, including the calendar screen |
 | `data/db/` | Room entities, DAOs, `AppDatabase` |
 | `data/repo/` | Repositories (the only way screens reach data) |
-| `data/remote/` | Firestore client for the personal board |
+| `data/remote/` | Firestore clients: personal board, session backup |
 | `data/model/` | Plain data classes for screens and reports (not Room entities) |
 | `domain/` | Pure Kotlin calculations, e.g. `ReportCalculator` |
 | `detection/` | `FocusService`, `EpisodeAnalyzer`, receivers (screen, earphone) |
@@ -43,11 +43,13 @@ Before coding, read `docs/schema.md` (data) or `DESIGN.md` (UI) when relevant.
 
 ## Session rules
 - Only one session can be RUNNING. `startSession` closes any leftover RUNNING session as UNFINISHED.
+- At the goal time, FocusService ends the session as COMPLETED with `endAt = startAt + goalMinutes`. Before that, only Early Stop can end it.
 - To end a session: stop FocusService, wait for RESULT_OK (last episode saved), then call `endSession`.
+- `endSession` returns without error if the session is missing or no longer RUNNING.
 - The running session is the RUNNING row in the database, not a value held in memory.
-- Screens get the repository with `context.sessionRepository` instead of creating one.
-- FocusService follows the RUNNING session: it switches on START with a new id and resumes it after a restart.
+- FocusService follows that row: it switches on START with a new session id and resumes it after a restart.
 - Opening the app while a session is RUNNING goes to that session, not to Prepare.
+- Screens get the repository with `context.sessionRepository` instead of creating one.
 
 ## Dependencies & secrets
 - Allowed: AndroidX, Material 3, Room, WorkManager, Firebase Auth, Credential Manager (Google Sign-In), Firebase AI Logic, Firebase Firestore, MPAndroidChart, CameraX. Ask before adding others.
@@ -55,12 +57,16 @@ Before coding, read `docs/schema.md` (data) or `DESIGN.md` (UI) when relevant.
 - Never commit or print keys, tokens, or passwords.
 
 ## Firestore
-- Firestore stores personal board posts only, under `users/{uid}/posts`. Each user reads and writes only their own posts.
-- Never upload session data or app usage data to Firestore.
+- Personal board posts: `users/{uid}/posts`. Each user reads and writes only their own posts.
+- Session backup (upload only): when a session ends and the user is logged in, `endSession` adds one document to `users/{uid}/sessions` with subject, goal, start/end, status, stop reason, focusMs, checkCount, earphoneMs.
+- Restore: only when the local database has no sessions (new phone or reinstall). No other download or sync.
+- Never upload phone_events, app_usages, device_states, plans, reflections, or photos.
+- Deleting a session in the app does not delete its backup.
+- Repositories call Firestore through `data/remote/`. Screens never call Firestore directly.
 
 ## Features
 Prompts refer to these IDs. Build only the feature the prompt names.
-- F-01 Prepare & session: subject, target time, one-line plan → START; ongoing notification with remaining time; no pause
+- F-01 Prepare & session: subject, target time, one-line plan → START; remaining time on the session screen and in the ongoing notification; ends automatically at the goal time (COMPLETED); no pause
 - F-02 Detection: unlock + app usage → `CHECK` / `ALLOWED_ONLY` / `UNLOCK_ONLY` (see Detection rules)
 - F-03 Allow List: user picks study apps; recorded but not counted
 - F-04 Early Stop: reason + optional memo
@@ -75,4 +81,7 @@ Prompts refer to these IDs. Build only the feature the prompt names.
 - F-14 Quick Settings tile: start a session
 - F-15 Calendar: in-app CalendarView in Report that marks study days; tap a day to list its sessions
 - F-16 Personal board: the user's own posts (e.g. study notes) in Firestore; create, read, update, delete; requires login
-- F-17 Earphone detection: detect Bluetooth earphone (e.g. AirPods) connect/disconnect during a session and record it with the session
+- F-17 Earphone detection: record Bluetooth earphone (e.g. AirPods) connect/disconnect during a session in `device_states`
+- F-18 Flip to focus: record when the phone lies face down during a session in `device_states`
+- F-19 Earphone start suggestion: when earphones connect and no session is running, suggest starting one (opt-in, at most once every few hours)
+- F-20 Session backup & restore: Firestore upload when a session ends; restore on a new phone (see Firestore)
