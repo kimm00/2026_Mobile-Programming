@@ -42,8 +42,10 @@ class PrepareActivity : AppCompatActivity() {
     private val defaultSubjects = listOf("Programming", "Math", "English")
     private val addSubjectOption = "+ Add subject"
     private val subjectList = mutableListOf<String>()
+    private val customSubjects = mutableListOf<String>()
     private lateinit var subjectAdapter: ArrayAdapter<String>
     private var selectedSubjectPosition = 0
+    private var savedSubjectName: String? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -65,13 +67,38 @@ class PrepareActivity : AppCompatActivity() {
         binding = ActivityPrepareBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        if (savedInstanceState != null) {
+            savedSubjectName = savedInstanceState.getString(KEY_SELECTED_SUBJECT_NAME)
+            savedInstanceState.getStringArrayList(KEY_CUSTOM_SUBJECTS)?.let { restored ->
+                customSubjects.clear()
+                customSubjects.addAll(restored)
+            }
+        }
+
         setupAppBar()
         setupSubjectSpinner()
         setupDurationPickers()
+
+        if (savedInstanceState != null) {
+            binding.npHours.value = savedInstanceState.getInt(KEY_NP_HOURS, 0)
+            binding.npMinutes.value = savedInstanceState.getInt(KEY_NP_MINUTES, 0)
+            updateDurationSummary()
+        }
+
         setupAllowListCard()
         setupStartButton()
 
         observeAllowedApps()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        val currentSelected = subjectList.getOrNull(selectedSubjectPosition)?.takeIf { it != addSubjectOption }
+            ?: savedSubjectName
+        outState.putString(KEY_SELECTED_SUBJECT_NAME, currentSelected)
+        outState.putStringArrayList(KEY_CUSTOM_SUBJECTS, ArrayList(customSubjects))
+        outState.putInt(KEY_NP_HOURS, binding.npHours.value)
+        outState.putInt(KEY_NP_MINUTES, binding.npMinutes.value)
     }
 
     override fun onStart() {
@@ -117,6 +144,7 @@ class PrepareActivity : AppCompatActivity() {
                     showAddSubjectDialog()
                 } else {
                     selectedSubjectPosition = position
+                    savedSubjectName = subjectList.getOrNull(position)
                 }
             }
 
@@ -129,11 +157,8 @@ class PrepareActivity : AppCompatActivity() {
     private fun observeSubjects() {
         lifecycleScope.launch {
             repository.observeSubjects().collect { pastSubjects ->
-                val currentSelected = subjectList.getOrNull(selectedSubjectPosition)
-                val userAdded = subjectList.filter {
-                    it != addSubjectOption && it !in defaultSubjects && it !in pastSubjects
-                }
-                val combined = (defaultSubjects + pastSubjects + userAdded).distinct()
+                val targetSubject = savedSubjectName ?: subjectList.getOrNull(selectedSubjectPosition)
+                val combined = (defaultSubjects + pastSubjects + customSubjects).distinct()
 
                 subjectList.clear()
                 subjectList.addAll(combined)
@@ -141,12 +166,13 @@ class PrepareActivity : AppCompatActivity() {
 
                 subjectAdapter.notifyDataSetChanged()
 
-                val newPos = if (currentSelected != null && subjectList.contains(currentSelected)) {
-                    subjectList.indexOf(currentSelected)
+                val newPos = if (targetSubject != null && subjectList.contains(targetSubject)) {
+                    subjectList.indexOf(targetSubject)
                 } else {
                     0
                 }
                 selectedSubjectPosition = newPos
+                savedSubjectName = subjectList.getOrNull(newPos)?.takeIf { it != addSubjectOption }
                 binding.spinnerSubject.setSelection(newPos)
             }
         }
@@ -179,8 +205,12 @@ class PrepareActivity : AppCompatActivity() {
             val existingIndex = subjectList.indexOfFirst { it.equals(newSubject, ignoreCase = true) }
             if (existingIndex != -1 && subjectList[existingIndex] != addSubjectOption) {
                 selectedSubjectPosition = existingIndex
+                savedSubjectName = subjectList[existingIndex]
                 binding.spinnerSubject.setSelection(existingIndex)
             } else {
+                if (!customSubjects.contains(newSubject)) {
+                    customSubjects.add(newSubject)
+                }
                 val addIndex = subjectList.indexOf(addSubjectOption)
                 if (addIndex != -1) {
                     subjectList.add(addIndex, newSubject)
@@ -189,6 +219,7 @@ class PrepareActivity : AppCompatActivity() {
                     subjectList.add(newSubject)
                     selectedSubjectPosition = subjectList.size - 1
                 }
+                savedSubjectName = newSubject
                 subjectAdapter.notifyDataSetChanged()
                 binding.spinnerSubject.setSelection(selectedSubjectPosition)
             }
@@ -405,5 +436,12 @@ class PrepareActivity : AppCompatActivity() {
                 binding.btnSession.isEnabled = true
             }
         }
+    }
+
+    private companion object {
+        private const val KEY_SELECTED_SUBJECT_NAME = "key_selected_subject_name"
+        private const val KEY_CUSTOM_SUBJECTS = "key_custom_subjects"
+        private const val KEY_NP_HOURS = "key_np_hours"
+        private const val KEY_NP_MINUTES = "key_np_minutes"
     }
 }
