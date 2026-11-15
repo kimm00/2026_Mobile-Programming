@@ -126,13 +126,52 @@ class FinishActivity : AppCompatActivity() {
         }
     }
 
+    private fun formatShortTime(ms: Long): String {
+        val totalSecs = (ms.coerceAtLeast(0L)) / 1000L
+        if (totalSecs == 0L) return "0s"
+
+        val mins = totalSecs / 60L
+        val secs = totalSecs % 60L
+
+        return when {
+            mins == 0L -> "${secs}s"
+            secs == 0L -> "${mins}m"
+            else -> "${mins}m ${secs}s"
+        }
+    }
+
+    private fun formatLongFocusedText(ms: Long): String {
+        val totalSecs = (ms.coerceAtLeast(0L)) / 1000L
+        if (totalSecs == 0L) return "0 seconds"
+
+        val mins = totalSecs / 60L
+        val secs = totalSecs % 60L
+
+        val minPart = when (mins) {
+            0L -> null
+            1L -> "1 minute"
+            else -> "$mins minutes"
+        }
+
+        val secPart = when (secs) {
+            0L -> null
+            1L -> "1 second"
+            else -> "$secs seconds"
+        }
+
+        return when {
+            minPart != null && secPart != null -> "$minPart $secPart"
+            minPart != null -> minPart
+            secPart != null -> secPart
+            else -> "0 seconds"
+        }
+    }
+
     private fun bindSessionDetail(
         session: SessionEntity,
         usages: List<com.example.focustrace.data.db.entity.AppUsageEntity>
     ) {
         currentSession = session
-
-        val focusMins = session.focusMs / 60000
 
         // Calculate total displayed phone usage seconds by summing truncated seconds of each distraction app
         val nonAllowedAppSeconds = usages
@@ -145,7 +184,7 @@ class FinishActivity : AppCompatActivity() {
         val dispPhoneSecs = nonAllowedAppSeconds % 60L
 
         binding.tvHeroHeading.text = if (session.status == "COMPLETED") "Nice work!" else "Session Ended"
-        binding.tvHeroSubtext.text = "You stayed focused for $focusMins minutes."
+        binding.tvHeroSubtext.text = "You stayed focused for ${formatLongFocusedText(session.focusMs)}."
 
         binding.tvStatusBadge.text = when (session.status) {
             "COMPLETED" -> "Completed"
@@ -156,11 +195,9 @@ class FinishActivity : AppCompatActivity() {
         val planText = if (!session.plan.isNullOrBlank()) " · Plan: ${session.plan}" else ""
         binding.tvSessionMeta.text = "Subject: ${session.subject}$planText"
 
-        binding.tvMetricFocus.text = "${focusMins}m"
+        binding.tvMetricFocus.text = formatShortTime(session.focusMs)
         binding.tvMetricChecks.text = session.checkCount.toString()
-
-        val longestMins = session.longestFocusMs / 60000
-        binding.tvMetricLongest.text = "${longestMins} min"
+        binding.tvMetricLongest.text = formatShortTime(session.longestFocusMs)
         binding.tvMetricPhoneUse.text = if (dispPhoneMins > 0L) "${dispPhoneMins}m ${dispPhoneSecs}s" else "${dispPhoneSecs}s"
 
         // Reflection
@@ -178,7 +215,7 @@ class FinishActivity : AppCompatActivity() {
 
         // Session Summary
         binding.tvAiSummaryContent.text = if (session.status == "COMPLETED") {
-            "You completed your $focusMins-minute session as planned for ${session.subject}."
+            "You completed your ${formatShortTime(session.focusMs)} session as planned for ${session.subject}."
         } else {
             "Session stopped early (${session.stopReason ?: "User choice"}). Try shorter intervals next time."
         }
@@ -366,6 +403,13 @@ class FinishActivity : AppCompatActivity() {
         }
     }
 
+    private data class AppUsageSummary(
+        val packageName: String,
+        val appLabel: String,
+        val totalMs: Long,
+        val seconds: Long
+    )
+
     private fun bindDistractions(usages: List<AppUsageEntity>) {
         val container = binding.layoutDistractions
         container.removeAllViews()
@@ -375,32 +419,41 @@ class FinishActivity : AppCompatActivity() {
 
         val textColor = Color.parseColor("#45593A")
 
-        // Top 3 non-allowed distractions
-        val topDistractions = usages
+        // Group non-allowed distractions by package name
+        val allDistractions = usages
             .filter { it.isCounted && !it.isAllowed && it.durationMs > 0L }
             .groupBy { it.packageName }
             .entries
             .map { entry ->
                 val appLabel = entry.value.firstOrNull { it.appLabel.isNotBlank() }?.appLabel ?: entry.key
-                val durationMs = entry.value.sumOf { it.durationMs }
-                Triple(entry.key, appLabel, durationMs)
+                val totalMs = entry.value.sumOf { it.durationMs }
+                AppUsageSummary(
+                    packageName = entry.key,
+                    appLabel = appLabel,
+                    totalMs = totalMs,
+                    seconds = totalMs / 1000L
+                )
             }
-            .sortedByDescending { it.third }
-            .take(3)
+            .sortedWith(compareByDescending<AppUsageSummary> { it.totalMs }.thenByDescending { it.seconds })
 
-        // All allowed apps used in the session
+        // Group allowed apps by package name
         val allowedApps = usages
             .filter { it.isAllowed && it.durationMs > 0L }
             .groupBy { it.packageName }
             .entries
             .map { entry ->
                 val appLabel = entry.value.firstOrNull { it.appLabel.isNotBlank() }?.appLabel ?: entry.key
-                val durationMs = entry.value.sumOf { it.durationMs }
-                Triple(entry.key, appLabel, durationMs)
+                val totalMs = entry.value.sumOf { it.durationMs }
+                AppUsageSummary(
+                    packageName = entry.key,
+                    appLabel = appLabel,
+                    totalMs = totalMs,
+                    seconds = totalMs / 1000L
+                )
             }
-            .sortedByDescending { it.third }
+            .sortedByDescending { it.totalMs }
 
-        if (topDistractions.isEmpty() && allowedApps.isEmpty()) {
+        if (allDistractions.isEmpty() && allowedApps.isEmpty()) {
             container.addView(
                 android.widget.TextView(this).apply {
                     text = "Nothing pulled you away this time."
@@ -413,26 +466,28 @@ class FinishActivity : AppCompatActivity() {
 
         var rankCounter = 1
 
-        topDistractions.forEach { (packageName, appName, durationMs) ->
+        // Render all distraction apps
+        allDistractions.forEach { summary ->
             addAppUsageRow(
                 container = container,
                 rank = rankCounter++,
-                packageName = packageName,
-                appName = appName,
-                durationMs = durationMs,
+                packageName = summary.packageName,
+                appName = summary.appLabel,
+                durationMs = summary.seconds * 1000L,
                 isAllowed = false,
                 dp = ::dp,
                 textColor = textColor
             )
         }
 
-        allowedApps.forEach { (packageName, appName, durationMs) ->
+        // Render all allowed apps
+        allowedApps.forEach { summary ->
             addAppUsageRow(
                 container = container,
                 rank = rankCounter++,
-                packageName = packageName,
-                appName = appName,
-                durationMs = durationMs,
+                packageName = summary.packageName,
+                appName = summary.appLabel,
+                durationMs = summary.seconds * 1000L,
                 isAllowed = true,
                 dp = ::dp,
                 textColor = textColor
