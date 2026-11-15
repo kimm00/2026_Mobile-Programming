@@ -242,42 +242,22 @@ class PrepareActivity : AppCompatActivity() {
         }
     }
 
-    private fun showAllowListDialog() {
-        lifecycleScope.launch {
-            val installedApps = withContext(Dispatchers.IO) {
-                getInstalledAppsForAllowList()
-            }
+    private data class CandidateSpec(
+        val title: String,
+        val knownPkgs: List<String>,
+        val pkgKw: List<String>,
+        val labelKw: List<String>
+    )
 
-            if (installedApps.isEmpty()) {
-                Toast.makeText(this@PrepareActivity, "No launchable study apps found", Toast.LENGTH_SHORT).show()
-                return@launch
-            }
+    private data class CandidateApp(
+        val id: String,
+        val displayTitle: String,
+        val packageName: String,
+        val isInstalled: Boolean,
+        var isChecked: Boolean
+    )
 
-            val appLabels = installedApps.map { it.second }.toTypedArray()
-            val booleanChecked = installedApps.map { (pkg, _) ->
-                currentAllowedApps.any { it.packageName == pkg }
-            }.toBooleanArray()
-
-            AlertDialog.Builder(this@PrepareActivity)
-                .setTitle("Allowed apps")
-                .setMultiChoiceItems(appLabels, booleanChecked) { _, which, isChecked ->
-                    booleanChecked[which] = isChecked
-                }
-                .setPositiveButton("OK") { _, _ ->
-                    lifecycleScope.launch {
-                        for (i in installedApps.indices) {
-                            val (pkg, label) = installedApps[i]
-                            val isChecked = booleanChecked[i]
-                            repository.setAllowed(pkg, label, isChecked)
-                        }
-                    }
-                }
-                .setNegativeButton("Cancel", null)
-                .show()
-        }
-    }
-
-    private fun getInstalledAppsForAllowList(): List<Pair<String, String>> {
+    private fun getCandidateApps(): List<CandidateApp> {
         val pm = packageManager
         val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
@@ -289,18 +269,153 @@ class PrepareActivity : AppCompatActivity() {
             pm.queryIntentActivities(mainIntent, 0)
         }
 
-        val currentPkg = packageName
-        val appList = mutableListOf<Pair<String, String>>()
+        val installedPackages = resolveInfos.map { it.activityInfo.packageName }.toSet()
 
-        for (ri in resolveInfos) {
-            val pkgName = ri.activityInfo.packageName
-            if (pkgName == currentPkg || pkgName.startsWith("com.android.systemui")) continue
-            val label = ri.loadLabel(pm).toString()
-            if (label.isNotBlank()) {
-                appList.add(pkgName to label)
+        fun findInstalledPackage(
+            knownPackages: List<String>,
+            pkgKeywords: List<String>,
+            labelKeywords: List<String>
+        ): Pair<String, Boolean> {
+            for (pkg in knownPackages) {
+                if (pkg in installedPackages) return pkg to true
             }
+            for (ri in resolveInfos) {
+                val pkg = ri.activityInfo.packageName
+                val label = ri.loadLabel(pm).toString().lowercase(java.util.Locale.ENGLISH)
+                if (pkgKeywords.any { pkg.contains(it, ignoreCase = true) } ||
+                    labelKeywords.any { label.contains(it, ignoreCase = true) }) {
+                    return pkg to true
+                }
+            }
+            return knownPackages.first() to false
         }
-        return appList.distinctBy { it.first }.sortedBy { it.second }
+
+        val candidatesSpec = listOf(
+            CandidateSpec(
+                "Dictionary",
+                listOf("com.naver.android.dic", "com.diotek.diodict4.eng.samsung", "com.google.android.apps.translate"),
+                listOf("dic", "dictionary"),
+                listOf("dictionary", "사전")
+            ),
+            CandidateSpec(
+                "Calculator",
+                listOf("com.google.android.calculator", "com.sec.android.app.popupcalculator", "com.apple.calculator", "com.android.calculator2"),
+                listOf("calculator"),
+                listOf("calculator", "계산기")
+            ),
+            CandidateSpec(
+                "Papago",
+                listOf("com.naver.labs.translator"),
+                listOf("papago", "translator"),
+                listOf("papago", "파파고")
+            ),
+            CandidateSpec(
+                "Calendar",
+                listOf("com.google.android.calendar", "com.samsung.android.calendar", "com.android.calendar"),
+                listOf("calendar"),
+                listOf("calendar", "달력", "캘린더")
+            ),
+            CandidateSpec(
+                "Notion",
+                listOf("notion.id"),
+                listOf("notion"),
+                listOf("notion")
+            ),
+            CandidateSpec(
+                "YouTube",
+                listOf("com.google.android.youtube"),
+                listOf("youtube"),
+                listOf("youtube")
+            )
+        )
+
+        return candidatesSpec.map { spec ->
+            val (actualPkg, installed) = findInstalledPackage(spec.knownPkgs, spec.pkgKw, spec.labelKw)
+            val currentlyAllowed = currentAllowedApps.any { it.packageName == actualPkg }
+            CandidateApp(
+                id = spec.title.lowercase(java.util.Locale.ENGLISH),
+                displayTitle = spec.title,
+                packageName = actualPkg,
+                isInstalled = installed,
+                isChecked = installed && currentlyAllowed
+            )
+        }
+    }
+
+    private fun showAllowListDialog() {
+        lifecycleScope.launch {
+            val candidates = withContext(Dispatchers.IO) {
+                getCandidateApps()
+            }
+
+            val dialogBinding = com.example.focustrace.databinding.DialogAllowListBinding.inflate(layoutInflater)
+            val container = dialogBinding.layoutCandidateContainer
+
+            val dialog = AlertDialog.Builder(this@PrepareActivity)
+                .setView(dialogBinding.root)
+                .create()
+
+            fun updateOkButtonText() {
+                val checkedCount = candidates.count { it.isChecked }
+                dialogBinding.btnDialogOk.text = if (checkedCount > 0) {
+                    "OK · $checkedCount app${if (checkedCount > 1) "s" else ""}"
+                } else {
+                    "OK"
+                }
+            }
+
+            candidates.forEach { candidate ->
+                val itemBinding = com.example.focustrace.databinding.ItemAllowListCandidateBinding.inflate(
+                    layoutInflater, container, false
+                )
+
+                itemBinding.tvCandidateTitle.text = candidate.displayTitle
+                itemBinding.cbCandidate.isChecked = candidate.isChecked
+
+                if (!candidate.isInstalled) {
+                    itemBinding.cbCandidate.isEnabled = false
+                    itemBinding.cbCandidate.isChecked = false
+                    itemBinding.tvCandidateTitle.alpha = 0.5f
+                    itemBinding.tvCandidateSubtitle.text = "Not installed"
+                    itemBinding.tvCandidateSubtitle.visibility = View.VISIBLE
+                    itemBinding.root.isEnabled = false
+                } else {
+                    itemBinding.root.setOnClickListener {
+                        candidate.isChecked = !candidate.isChecked
+                        itemBinding.cbCandidate.isChecked = candidate.isChecked
+                        updateOkButtonText()
+                    }
+                }
+
+                container.addView(itemBinding.root)
+            }
+
+            updateOkButtonText()
+
+            dialogBinding.btnDialogCancel.setOnClickListener {
+                dialog.dismiss()
+            }
+
+            dialogBinding.btnDialogOk.setOnClickListener {
+                dialog.dismiss()
+                lifecycleScope.launch {
+                    val selectedPackageNames = candidates.filter { it.isChecked }.map { it.packageName }.toSet()
+
+                    for (candidate in candidates) {
+                        if (candidate.isInstalled) {
+                            repository.setAllowed(candidate.packageName, candidate.displayTitle, candidate.isChecked)
+                        }
+                    }
+
+                    val extraAppsToUnset = currentAllowedApps.filter { it.packageName !in selectedPackageNames }
+                    for (app in extraAppsToUnset) {
+                        repository.setAllowed(app.packageName, app.appLabel, false)
+                    }
+                }
+            }
+
+            dialog.show()
+        }
     }
 
     private fun setupStartButton() {
