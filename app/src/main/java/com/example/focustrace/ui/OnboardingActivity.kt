@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -15,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.focustrace.MainActivity
+import com.example.focustrace.R
 import com.example.focustrace.databinding.ActivityOnboardingBinding
 
 class OnboardingActivity : AppCompatActivity() {
@@ -69,7 +71,7 @@ class OnboardingActivity : AppCompatActivity() {
 
     private fun updatePermissionStatuses() {
         val usageGranted = isUsagePermissionGranted()
-        binding.tvStatusUsage.text = if (usageGranted) "Allowed" else "Needs Setup"
+        binding.tvStatusUsage.text = if (usageGranted) "Allowed ✓" else "Not allowed"
         binding.btnGrantUsage.isEnabled = !usageGranted
 
         val notificationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -80,8 +82,22 @@ class OnboardingActivity : AppCompatActivity() {
         } else {
             true
         }
-        binding.tvStatusNotifications.text = if (notificationGranted) "Allowed" else "Needs Setup"
+        binding.tvStatusNotifications.text = if (notificationGranted) "Allowed ✓" else "Not allowed"
         binding.btnGrantNotifications.isEnabled = !notificationGranted
+
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        val batteryGranted = powerManager.isIgnoringBatteryOptimizations(packageName)
+        binding.tvStatusBattery.text = if (batteryGranted) "Allowed ✓" else "Not allowed"
+        binding.btnOpenBatterySettings.isEnabled = !batteryGranted
+
+        val count = listOf(usageGranted, notificationGranted, batteryGranted).count { it }
+        binding.tvProgressCount.text = "$count of 3 completed"
+
+        val activeColor = ContextCompat.getColor(this, R.color.focus_brand_green)
+        val inactiveColor = ContextCompat.getColor(this, R.color.focus_border_green)
+        binding.viewProgress1.setBackgroundColor(if (count >= 1) activeColor else inactiveColor)
+        binding.viewProgress2.setBackgroundColor(if (count >= 2) activeColor else inactiveColor)
+        binding.viewProgress3.setBackgroundColor(if (count >= 3) activeColor else inactiveColor)
     }
 
     private fun isUsagePermissionGranted(): Boolean {
