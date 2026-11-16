@@ -3,12 +3,10 @@ package com.example.focustrace.ui
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.View
-import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -53,11 +51,7 @@ class OnboardingActivity : AppCompatActivity() {
         }
 
         binding.btnGrantNotifications.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                Toast.makeText(this, "Notifications already allowed on this Android version", Toast.LENGTH_SHORT).show()
-            }
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
         binding.btnOpenBatterySettings.setOnClickListener {
@@ -85,14 +79,10 @@ class OnboardingActivity : AppCompatActivity() {
         binding.tvStatusUsage.text = if (usageGranted) "Allowed ✓" else "Not allowed"
         binding.btnGrantUsage.isEnabled = !usageGranted
 
-        val notificationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
+        val notificationGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
         binding.tvStatusNotifications.text = if (notificationGranted) "Allowed ✓" else "Not allowed"
         binding.btnGrantNotifications.isEnabled = !notificationGranted
 
