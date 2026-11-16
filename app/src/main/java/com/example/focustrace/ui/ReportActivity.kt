@@ -2,22 +2,29 @@ package com.example.focustrace.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.Menu
 import android.view.View
+import android.widget.PopupMenu
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.focustrace.MainActivity
 import com.example.focustrace.data.db.AppDatabase
 import com.example.focustrace.data.model.PeriodType
+import com.example.focustrace.data.model.ReportSession
 import com.example.focustrace.data.repo.ReportRepository
 import com.example.focustrace.data.repo.RoomReportRepository
 import com.example.focustrace.databinding.ActivityReportBinding
+import com.example.focustrace.ui.report.CalendarSessionAdapter
 import com.example.focustrace.ui.report.ReportPagerAdapter
+import com.example.focustrace.ui.report.TimeFormatter
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -33,6 +40,9 @@ class ReportActivity : AppCompatActivity() {
             AppDatabase.get(applicationContext)
         )
     }
+
+    private var selectedCalendarDate: LocalDate = LocalDate.now(zoneId)
+    private lateinit var calendarAdapter: CalendarSessionAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,6 +83,7 @@ class ReportActivity : AppCompatActivity() {
                     // Calendar view
                     binding.layoutOverviewContainer.visibility = View.GONE
                     binding.layoutCalendarContainer.visibility = View.VISIBLE
+                    loadCalendarDaySessions(selectedCalendarDate)
                 } else {
                     // Overview view
                     binding.layoutOverviewContainer.visibility = View.VISIBLE
@@ -103,13 +114,74 @@ class ReportActivity : AppCompatActivity() {
     }
 
     private fun setupCalendarView() {
+        calendarAdapter = CalendarSessionAdapter(zoneId) { session, anchorView ->
+            showDeletePopupMenu(session, anchorView)
+            true
+        }
+
+        binding.rvCalendarSessions.layoutManager = LinearLayoutManager(this)
+        binding.rvCalendarSessions.adapter = calendarAdapter
+
         binding.calendarView.setOnDateChangeListener { _, year, month, dayOfMonth ->
-            val clickedDate = LocalDate.of(year, month + 1, dayOfMonth)
-            loadCalendarDaySessions(clickedDate)
+            selectedCalendarDate = LocalDate.of(year, month + 1, dayOfMonth)
+            loadCalendarDaySessions(selectedCalendarDate)
         }
 
         // Default load today's sessions in calendar mode
-        loadCalendarDaySessions(LocalDate.now(zoneId))
+        selectedCalendarDate = LocalDate.now(zoneId)
+        loadCalendarDaySessions(selectedCalendarDate)
+    }
+
+    private fun showDeletePopupMenu(session: ReportSession, anchorView: View) {
+        val popup = PopupMenu(this, anchorView)
+        popup.menu.add(Menu.NONE, 1, Menu.NONE, "Delete")
+        popup.setOnMenuItemClickListener { menuItem ->
+            if (menuItem.itemId == 1) {
+                confirmAndDeleteSession(session)
+                true
+            } else {
+                false
+            }
+        }
+        popup.show()
+    }
+
+    private fun confirmAndDeleteSession(session: ReportSession) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Delete Session")
+            .setMessage("Are you sure you want to delete session '${session.subject}'?")
+            .setPositiveButton("Delete") { _, _ ->
+                performSessionDeletion(session.id)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun performSessionDeletion(sessionId: Long) {
+        lifecycleScope.launch {
+            try {
+                val success = withContext(Dispatchers.IO) {
+                    repository.deleteSession(sessionId)
+                }
+
+                if (success) {
+                    Toast.makeText(this@ReportActivity, "Session deleted", Toast.LENGTH_SHORT).show()
+                    loadCalendarDaySessions(selectedCalendarDate)
+                    refreshOverviewReports()
+                } else {
+                    Toast.makeText(this@ReportActivity, "Failed to delete session", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@ReportActivity, "Error deleting session: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun refreshOverviewReports() {
+        val currentItem = binding.viewPagerReport.currentItem
+        val adapter = ReportPagerAdapter(this)
+        binding.viewPagerReport.adapter = adapter
+        binding.viewPagerReport.setCurrentItem(currentItem, false)
     }
 
     private fun loadCalendarDaySessions(date: LocalDate) {
@@ -118,31 +190,28 @@ class ReportActivity : AppCompatActivity() {
             binding.tvSelectedDayTitle.text = dateStr
 
             val startOfDay = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
-            val endOfDay = date.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli() - 1
+            val endOfDay = date.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
 
             val report = withContext(Dispatchers.IO) {
                 repository.getReport(PeriodType.DAY, startOfDay, endOfDay, zoneId)
             }
 
             if (report.sessions.isEmpty()) {
-                binding.tvSelectedDaySessionsSummary.text = "No sessions recorded on $dateStr."
+                binding.tvSelectedDayHeaderSummary.text = "No sessions recorded."
+                binding.tvCalendarEmptyState.visibility = View.VISIBLE
+                binding.rvCalendarSessions.visibility = View.GONE
+                calendarAdapter.submitList(emptyList())
             } else {
-                val focusMins = report.summary.totalFocusMs / 60000
+                val totalFocusStr = TimeFormatter.formatDuration(report.summary.totalFocusMs)
                 val checkCount = report.summary.totalCheckCount
                 val sessionCount = report.sessions.size
 
-                val sb = StringBuilder()
-                sb.append("Total: $sessionCount session(s), ${focusMins} min focus, $checkCount phone check(s).\n\n")
+                binding.tvSelectedDayHeaderSummary.text =
+                    "Total: $sessionCount session(s) · $totalFocusStr focus · $checkCount phone check(s)"
 
-                report.sessions.forEachIndexed { idx, session ->
-                    val sessionFocus = session.focusMs / 60000
-                    val startTime = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
-                        .format(Instant.ofEpochMilli(session.startAt).atZone(zoneId))
-
-                    sb.append("${idx + 1}. [${session.subject}] $startTime · ${sessionFocus}m focus (${session.status})\n")
-                }
-
-                binding.tvSelectedDaySessionsSummary.text = sb.toString().trim()
+                binding.tvCalendarEmptyState.visibility = View.GONE
+                binding.rvCalendarSessions.visibility = View.VISIBLE
+                calendarAdapter.submitList(report.sessions)
             }
         }
     }

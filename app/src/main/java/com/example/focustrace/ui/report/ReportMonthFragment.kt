@@ -20,7 +20,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
-import java.util.Locale
 
 /**
  * Fragment displaying monthly focus report, weekly chart, phone checks, and top app usage.
@@ -101,33 +100,27 @@ class ReportMonthFragment : Fragment() {
     private fun renderReport(report: PeriodReportData) {
         val summary = report.summary
 
-        val totalMinutes = summary.totalFocusMs / (60 * 1000)
-        val hours = totalMinutes / 60
-        val mins = totalMinutes % 60
-        binding.tvTotalFocusValue.text = if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
-
-        binding.tvChecksPerHourValue.text = String.format(Locale.ENGLISH, "%.1f", summary.checksPerFocusHour)
+        binding.tvTotalFocusValue.text = TimeFormatter.formatDuration(summary.totalFocusMs)
+        binding.tvChecksPerHourValue.text = TimeFormatter.formatChecksPerHour(summary.checksPerFocusHour, summary.totalFocusMs)
         binding.tvCompletionRateValue.text = "${summary.goalCompletionRate.toInt()}%"
-
-        val longestMins = summary.longestFocusMs / (60 * 1000)
-        binding.tvLongestFocusValue.text = "${longestMins} min"
+        binding.tvLongestFocusValue.text = TimeFormatter.formatDuration(summary.longestFocusMs)
 
         binding.tvPhoneChecksValue.text = "${summary.totalCheckCount} phone checks"
-        val phoneUseMins = summary.totalPhoneUseMs / (60 * 1000)
-        binding.tvPhoneUsageValue.text = "${phoneUseMins}m phone usage"
 
-        if (report.topAppUsages.isEmpty()) {
-            binding.tvMostUsedAppsContent.text = "No non-allowed apps used."
-        } else {
-            val topAppsText = report.topAppUsages.take(3).joinToString(separator = "\n") { app ->
-                val appMins = app.totalDurationMs / (60 * 1000)
-                "• ${app.appLabel}: ${appMins}m"
-            }
-            binding.tvMostUsedAppsContent.text = topAppsText
-        }
+        // Calculate total displayed phone usage time by summing truncated seconds of distraction apps
+        val distractionSecs = report.topAppUsages.filter { !it.isAllowed }.sumOf { it.totalDurationMs / 1000L }
+        val displayedPhoneUsageMs = distractionSecs * 1000L
+        binding.tvPhoneUsageValue.text = "${TimeFormatter.formatDuration(displayedPhoneUsageMs)} phone usage"
+
+        // Render dynamic app usages list
+        AppUsageViewHelper.bindAppUsages(
+            binding.layoutAppUsagesContainer,
+            report.topAppUsages,
+            requireContext().packageManager
+        )
 
         binding.tvChartTitle.text = "Weekly Focus Time"
-        binding.tvChartSubtitle.text = "Focus minutes per week"
+        binding.tvChartSubtitle.text = "Focus time per week"
         FocusBarChartBinder.bindWeeklyChart(binding.barChartFocusByDay, report.weeklyStats)
     }
 }

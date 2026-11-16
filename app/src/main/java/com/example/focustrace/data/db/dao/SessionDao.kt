@@ -165,6 +165,9 @@ abstract class SessionDao {
     @Query("SELECT * FROM sessions WHERE id = :sessionId LIMIT 1")
     abstract suspend fun getSessionById(sessionId: Long): SessionEntity?
 
+    @Query("DELETE FROM sessions WHERE id = :sessionId")
+    abstract suspend fun deleteSession(sessionId: Long): Int
+
     @Insert
     abstract suspend fun insertDeviceState(state: DeviceStateEntity): Long
 

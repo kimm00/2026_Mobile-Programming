@@ -103,30 +103,24 @@ class ReportDayFragment : Fragment() {
     private fun renderReport(report: PeriodReportData) {
         val summary = report.summary
 
-        val totalMinutes = summary.totalFocusMs / (60 * 1000)
-        val hours = totalMinutes / 60
-        val mins = totalMinutes % 60
-        binding.tvTotalFocusValue.text = if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
-
-        binding.tvChecksPerHourValue.text = String.format(Locale.ENGLISH, "%.1f", summary.checksPerFocusHour)
+        binding.tvTotalFocusValue.text = TimeFormatter.formatDuration(summary.totalFocusMs)
+        binding.tvChecksPerHourValue.text = TimeFormatter.formatChecksPerHour(summary.checksPerFocusHour, summary.totalFocusMs)
         binding.tvCompletionRateValue.text = "${summary.goalCompletionRate.toInt()}%"
-
-        val longestMins = summary.longestFocusMs / (60 * 1000)
-        binding.tvLongestFocusValue.text = "${longestMins} min"
+        binding.tvLongestFocusValue.text = TimeFormatter.formatDuration(summary.longestFocusMs)
 
         binding.tvPhoneChecksValue.text = "${summary.totalCheckCount} phone checks"
-        val phoneUseMins = summary.totalPhoneUseMs / (60 * 1000)
-        binding.tvPhoneUsageValue.text = "${phoneUseMins}m phone usage"
 
-        if (report.topAppUsages.isEmpty()) {
-            binding.tvMostUsedAppsContent.text = "No non-allowed apps used."
-        } else {
-            val topAppsText = report.topAppUsages.take(3).joinToString(separator = "\n") { app ->
-                val appMins = app.totalDurationMs / (60 * 1000)
-                "• ${app.appLabel}: ${appMins}m"
-            }
-            binding.tvMostUsedAppsContent.text = topAppsText
-        }
+        // Calculate total displayed phone usage time by summing truncated seconds of distraction apps
+        val distractionSecs = report.topAppUsages.filter { !it.isAllowed }.sumOf { it.totalDurationMs / 1000L }
+        val displayedPhoneUsageMs = distractionSecs * 1000L
+        binding.tvPhoneUsageValue.text = "${TimeFormatter.formatDuration(displayedPhoneUsageMs)} phone usage"
+
+        // Render dynamic app usages list
+        AppUsageViewHelper.bindAppUsages(
+            binding.layoutAppUsagesContainer,
+            report.topAppUsages,
+            requireContext().packageManager
+        )
 
         renderDayTimeline(report)
     }
@@ -148,11 +142,11 @@ class ReportDayFragment : Fragment() {
                     .format(Instant.ofEpochMilli(session.endAt).atZone(zoneId))
             } else "Ongoing"
 
-            val focusMins = session.focusMs / (60 * 1000)
-            val phoneMins = session.phoneUseMs / (60 * 1000)
+            val focusStr = TimeFormatter.formatDuration(session.focusMs)
+            val phoneStr = TimeFormatter.formatDuration(session.phoneUseMs)
 
             sb.append("${index + 1}. [${session.subject}] $startTime - $endTime\n")
-            sb.append("   Focus: ${focusMins}m | Phone: ${phoneMins}m | Checks: ${session.checkCount} (${session.status})\n")
+            sb.append("   Focus: $focusStr | Phone: $phoneStr | Checks: ${session.checkCount} (${session.status})\n")
             if (!session.stopMemo.isNullOrBlank()) {
                 sb.append("   Memo: \"${session.stopMemo}\"\n")
             }

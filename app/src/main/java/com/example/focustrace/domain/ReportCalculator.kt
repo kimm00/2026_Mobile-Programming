@@ -250,17 +250,35 @@ class ReportCalculator(
     }
 
     fun calculateTopAppUsages(appUsages: List<ReportAppUsage>): List<AppUsageStat> {
-        return appUsages
-            .groupBy { it.packageName to it.appLabel }
+        val distractionApps = appUsages
+            .filter { it.isCounted && !it.isAllowed && it.durationMs > 0L }
+            .groupBy { Pair(it.packageName, false) }
             .map { (key, usages) ->
+                val label = usages.firstOrNull { it.appLabel.isNotBlank() }?.appLabel ?: key.first
                 AppUsageStat(
                     packageName = key.first,
-                    appLabel = key.second,
+                    appLabel = label,
                     totalDurationMs = usages.sumOf { it.durationMs },
-                    isAllowed = usages.firstOrNull()?.isAllowed ?: false
+                    isAllowed = false
                 )
             }
             .sortedByDescending { it.totalDurationMs }
+
+        val allowedApps = appUsages
+            .filter { it.isAllowed && it.durationMs > 0L }
+            .groupBy { Pair(it.packageName, true) }
+            .map { (key, usages) ->
+                val label = usages.firstOrNull { it.appLabel.isNotBlank() }?.appLabel ?: key.first
+                AppUsageStat(
+                    packageName = key.first,
+                    appLabel = label,
+                    totalDurationMs = usages.sumOf { it.durationMs },
+                    isAllowed = true
+                )
+            }
+            .sortedByDescending { it.totalDurationMs }
+
+        return distractionApps + allowedApps
     }
 
     fun calculateEarlyStopReasons(sessions: List<ReportSession>): List<EarlyStopReasonStat> {

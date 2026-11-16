@@ -72,4 +72,7 @@ interface SessionRepository {
 
     /** Called by FinishActivity to link a session to a personal board journal post. */
     suspend fun saveJournalPostId(sessionId: Long, postId: String?)
+
+    /** Called by ReportActivity to delete a focus session record and associated events. */
+    suspend fun deleteSession(sessionId: Long): Boolean
 }

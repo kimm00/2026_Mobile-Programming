@@ -104,4 +104,8 @@ class RoomReportRepository(
             appUsages = reportUsages
         )
     }
+
+    override suspend fun deleteSession(sessionId: Long): Boolean {
+        return database.sessionDao().deleteSession(sessionId) > 0
+    }
 }

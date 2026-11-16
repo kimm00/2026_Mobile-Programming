@@ -35,7 +35,7 @@ object FocusBarChartBinder {
         val labels = ArrayList<String>()
 
         dailyStats.forEachIndexed { index, stat ->
-            // Convert focus duration to minutes as Float (0f for zero-focus days so they remain visible on X-axis)
+            // Convert focus duration to minutes as Float (sub-minute values reflected in bar height)
             val minutes = stat.focusMs / (60 * 1000f)
             entries.add(BarEntry(index.toFloat(), minutes))
 
@@ -69,13 +69,14 @@ object FocusBarChartBinder {
     }
 
     private fun renderBarChart(chart: BarChart, entries: List<BarEntry>, labels: List<String>) {
-        val dataSet = BarDataSet(entries, "Focus Minutes").apply {
+        val dataSet = BarDataSet(entries, "Focus Time").apply {
             color = Color.parseColor(GREEN_PRIMARY)
             valueTextColor = Color.parseColor(GREEN_DARK)
-            valueTextSize = 11f
+            valueTextSize = 10f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return if (value > 0f) "${value.toInt()}m" else "0"
+                    val ms = (value * 60_000f).toLong()
+                    return if (ms > 0L) TimeFormatter.formatDuration(ms) else ""
                 }
             }
         }
@@ -108,6 +109,12 @@ object FocusBarChartBinder {
                 axisMinimum = 0f
                 textColor = Color.parseColor("#616161")
                 textSize = 10f
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        val ms = (value * 60_000f).toLong()
+                        return if (ms > 0L) TimeFormatter.formatDuration(ms) else "0s"
+                    }
+                }
             }
 
             // Disable Right Y-Axis

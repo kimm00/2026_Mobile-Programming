@@ -197,13 +197,32 @@
                         android:textStyle="bold" />
 
                     <TextView
-                        android:id="@+id/tv_selected_day_sessions_summary"
+                        android:id="@+id/tv_selected_day_header_summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/focus_text_dark"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        tools:text="Total: 2 session(s) · 1h 20m focus · 3 phone check(s)" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_calendar_sessions"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="Select a day on the calendar to see recorded focus sessions."
+                        android:nestedScrollingEnabled="false"
+                        tools:listitem="@layout/item_calendar_session" />
+
+                    <TextView
+                        android:id="@+id/tv_calendar_empty_state"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="No sessions recorded on this day."
                         android:textColor="@color/focus_text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="13sp"
+                        android:visibility="gone" />
                 </LinearLayout>
 
             </LinearLayout>

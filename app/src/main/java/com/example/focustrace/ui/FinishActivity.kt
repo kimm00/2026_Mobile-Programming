@@ -127,17 +127,7 @@ class FinishActivity : AppCompatActivity() {
     }
 
     private fun formatShortTime(ms: Long): String {
-        val totalSecs = (ms.coerceAtLeast(0L)) / 1000L
-        if (totalSecs == 0L) return "0s"
-
-        val mins = totalSecs / 60L
-        val secs = totalSecs % 60L
-
-        return when {
-            mins == 0L -> "${secs}s"
-            secs == 0L -> "${mins}m"
-            else -> "${mins}m ${secs}s"
-        }
+        return com.example.focustrace.ui.report.TimeFormatter.formatDuration(ms)
     }
 
     private fun formatLongFocusedText(ms: Long): String {

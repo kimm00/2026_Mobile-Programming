@@ -106,7 +106,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Checks / Focus Hour"
+                        android:text="Phone checks per focus hour"
                         android:textColor="@color/focus_text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -164,7 +164,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Longest Session"
+                        android:text="Longest Uninterrupted"
                         android:textColor="@color/focus_text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -206,14 +206,12 @@
                 android:textColor="@color/focus_text_dark"
                 android:textSize="14sp" />
 
-            <TextView
-                android:id="@+id/tvMostUsedAppsContent"
+            <LinearLayout
+                android:id="@+id/layoutAppUsagesContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="No non-allowed apps used."
-                android:textColor="@color/focus_text_secondary"
-                android:textSize="13sp" />
+                android:orientation="vertical" />
         </LinearLayout>
 
         <!-- Day Timeline & Notes -->

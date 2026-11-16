@@ -279,4 +279,8 @@ class RoomSessionRepository(
     override suspend fun saveJournalPostId(sessionId: Long, postId: String?) {
         dao.updateJournalPostId(sessionId, postId)
     }
+
+    override suspend fun deleteSession(sessionId: Long): Boolean {
+        return dao.deleteSession(sessionId) > 0
+    }
 }
