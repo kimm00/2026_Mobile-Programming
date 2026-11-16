@@ -1,7 +1,6 @@
 package com.example.focustrace.ui
 
 import android.Manifest
-import android.app.AppOpsManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -19,6 +18,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.example.focustrace.MainActivity
 import com.example.focustrace.R
 import com.example.focustrace.databinding.ActivityOnboardingBinding
+import com.example.focustrace.detection.UsageStatsHelper
 
 class OnboardingActivity : AppCompatActivity() {
 
@@ -81,7 +81,7 @@ class OnboardingActivity : AppCompatActivity() {
     }
 
     private fun updatePermissionStatuses() {
-        val usageGranted = isUsagePermissionGranted()
+        val usageGranted = UsageStatsHelper.hasUsageStatsPermission(this)
         binding.tvStatusUsage.text = if (usageGranted) "Allowed ✓" else "Not allowed"
         binding.btnGrantUsage.isEnabled = !usageGranted
 
@@ -115,24 +115,5 @@ class OnboardingActivity : AppCompatActivity() {
         binding.viewProgress1.setBackgroundColor(if (count >= 1) activeColor else inactiveColor)
         binding.viewProgress2.setBackgroundColor(if (count >= 2) activeColor else inactiveColor)
         binding.viewProgress3.setBackgroundColor(if (count >= 3) activeColor else inactiveColor)
-    }
-
-    private fun isUsagePermissionGranted(): Boolean {
-        val appOps = getSystemService(APP_OPS_SERVICE) as AppOpsManager
-        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            appOps.unsafeCheckOpNoThrow(
-                AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
-                packageName
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            appOps.checkOpNoThrow(
-                AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
-                packageName
-            )
-        }
-        return mode == AppOpsManager.MODE_ALLOWED
     }
 }

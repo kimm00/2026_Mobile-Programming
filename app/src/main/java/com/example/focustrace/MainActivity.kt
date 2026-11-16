@@ -1,8 +1,6 @@
 package com.example.focustrace
 
-import android.app.AppOpsManager
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -17,6 +15,7 @@ import com.example.focustrace.data.repo.ReportRepository
 import com.example.focustrace.databinding.ActivityMainBinding
 import com.example.focustrace.databinding.BottomSheetProfileBinding
 import com.example.focustrace.detection.FocusService
+import com.example.focustrace.detection.UsageStatsHelper
 import com.example.focustrace.ui.AiInsightTestActivity
 import com.example.focustrace.ui.PrepareActivity
 import com.example.focustrace.ui.ReportActivity
@@ -114,7 +113,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnStartFocus.setOnClickListener {
-            if (isUsagePermissionGranted()) {
+            if (UsageStatsHelper.hasUsageStatsPermission(this)) {
                 startActivity(Intent(this, PrepareActivity::class.java))
             } else {
                 startActivity(Intent(this, UsagePermissionActivity::class.java))
@@ -249,24 +248,5 @@ class MainActivity : AppCompatActivity() {
         }
 
         dialog.show()
-    }
-
-    private fun isUsagePermissionGranted(): Boolean {
-        val appOps = getSystemService(APP_OPS_SERVICE) as AppOpsManager
-        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            appOps.unsafeCheckOpNoThrow(
-                AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
-                packageName
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            appOps.checkOpNoThrow(
-                AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
-                packageName
-            )
-        }
-        return mode == AppOpsManager.MODE_ALLOWED
     }
 }
