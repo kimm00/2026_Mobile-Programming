@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +23,7 @@ import com.example.focustrace.databinding.ActivityOnboardingBinding
 class OnboardingActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityOnboardingBinding
+    private var isBatteryLaterDismissed = false
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -58,6 +60,15 @@ class OnboardingActivity : AppCompatActivity() {
             }
         }
 
+        binding.btnOpenBatterySettings.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        }
+
+        binding.btnBatteryLater.setOnClickListener {
+            isBatteryLaterDismissed = true
+            updatePermissionStatuses()
+        }
+
         binding.btnContinueOnboarding.setOnClickListener {
             startActivity(Intent(this, MainActivity::class.java))
             finish()
@@ -88,7 +99,9 @@ class OnboardingActivity : AppCompatActivity() {
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         val batteryGranted = powerManager.isIgnoringBatteryOptimizations(packageName)
         binding.tvStatusBattery.text = if (batteryGranted) "Allowed ✓" else "Not allowed"
-        binding.btnOpenBatterySettings.isEnabled = !batteryGranted
+        val showBatteryButtons = !batteryGranted && !isBatteryLaterDismissed
+        binding.btnOpenBatterySettings.visibility = if (showBatteryButtons) View.VISIBLE else View.GONE
+        binding.btnBatteryLater.visibility = if (showBatteryButtons) View.VISIBLE else View.GONE
 
         val canContinue = usageGranted && notificationGranted
         binding.btnContinueOnboarding.isEnabled = canContinue
