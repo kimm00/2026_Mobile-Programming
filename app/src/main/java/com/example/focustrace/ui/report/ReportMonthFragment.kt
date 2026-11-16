@@ -22,7 +22,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * Fragment displaying monthly focus report, weekly chart, phone checks, and top app usage.
+ * Fragment displaying monthly focus report, weekly chart, top app usage, and early stop reasons.
  */
 class ReportMonthFragment : Fragment() {
 
@@ -100,27 +100,45 @@ class ReportMonthFragment : Fragment() {
     private fun renderReport(report: PeriodReportData) {
         val summary = report.summary
 
+        // Summary Card Headline & Footer
+        val sessionCount = report.sessions.size
+        binding.tvSummaryHeadline.text = when {
+            sessionCount == 0 -> "No focus sessions recorded this month."
+            sessionCount == 1 -> "You stayed focused across 1 session this month."
+            else -> "You stayed focused across $sessionCount sessions this month."
+        }
+
         binding.tvTotalFocusValue.text = TimeFormatter.formatDuration(summary.totalFocusMs)
         binding.tvChecksPerHourValue.text = TimeFormatter.formatChecksPerHour(summary.checksPerFocusHour, summary.totalFocusMs)
         binding.tvCompletionRateValue.text = "${summary.goalCompletionRate.toInt()}%"
         binding.tvLongestFocusValue.text = TimeFormatter.formatDuration(summary.longestFocusMs)
 
-        binding.tvPhoneChecksValue.text = "${summary.totalCheckCount} phone checks"
+        binding.tvSummaryFooter.text =
+            "$sessionCount sessions · ${summary.completedSessionCount} targets completed · ${summary.totalCheckCount} checks"
 
-        // Calculate total displayed phone usage time by summing truncated seconds of distraction apps
-        val distractionSecs = report.topAppUsages.filter { !it.isAllowed }.sumOf { it.totalDurationMs / 1000L }
-        val displayedPhoneUsageMs = distractionSecs * 1000L
-        binding.tvPhoneUsageValue.text = "${TimeFormatter.formatDuration(displayedPhoneUsageMs)} phone usage"
+        // Chart Card
+        val totalMins = summary.totalFocusMs / (60 * 1000)
+        binding.tvChartTitle.text = "Focus time by week"
+        binding.tvChartSubtitle.text = "$totalMins minutes focused across the month"
+        FocusBarChartBinder.bindWeeklyChart(binding.barChartFocusByDay, report.weeklyStats)
 
-        // Render dynamic app usages list
+        // Render What Pulled You Away App List
         AppUsageViewHelper.bindAppUsages(
             binding.layoutAppUsagesContainer,
             report.topAppUsages,
             requireContext().packageManager
         )
 
-        binding.tvChartTitle.text = "Weekly Focus Time"
-        binding.tvChartSubtitle.text = "Focus time per week"
-        FocusBarChartBinder.bindWeeklyChart(binding.barChartFocusByDay, report.weeklyStats)
+        // Early Stop Reasons Card
+        if (report.earlyStopReasons.isNotEmpty()) {
+            binding.cardEarlyStops.visibility = View.VISIBLE
+            val totalEarlyStops = report.earlyStopReasons.sumOf { it.count }
+            binding.tvEarlyStopsSubtitle.text = "$totalEarlyStops early stops this month"
+            binding.tvEarlyStopReasonsDetails.text = report.earlyStopReasons.joinToString(" · ") {
+                "${it.reasonCode} ${it.count}"
+            }
+        } else {
+            binding.cardEarlyStops.visibility = View.GONE
+        }
     }
 }

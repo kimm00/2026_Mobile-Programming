@@ -1,18 +1,25 @@
 package com.example.focustrace.ui.report
 
+import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.example.focustrace.R
 import com.example.focustrace.data.db.AppDatabase
 import com.example.focustrace.data.model.PeriodReportData
 import com.example.focustrace.data.model.PeriodType
 import com.example.focustrace.data.repo.ReportRepository
 import com.example.focustrace.data.repo.RoomReportRepository
 import com.example.focustrace.databinding.FragmentReportDayBinding
+import com.example.focustrace.databinding.ItemCalendarSessionBinding
+import com.example.focustrace.ui.FinishActivity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,7 +32,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Fragment displaying daily focus report, phone checks, top app usage, and session timeline.
+ * Fragment displaying daily focus report, top summary, sessions card, and app usage matching Figma specs.
  */
 class ReportDayFragment : Fragment() {
 
@@ -103,64 +110,91 @@ class ReportDayFragment : Fragment() {
     private fun renderReport(report: PeriodReportData) {
         val summary = report.summary
 
+        // Summary Card Headline & Footer
+        val sessionCount = report.sessions.size
+        binding.tvSummaryHeadline.text = when {
+            sessionCount == 0 -> "No focus sessions recorded today."
+            sessionCount == 1 -> "You stayed focused across 1 session today."
+            else -> "You stayed focused across $sessionCount sessions today."
+        }
+
         binding.tvTotalFocusValue.text = TimeFormatter.formatDuration(summary.totalFocusMs)
         binding.tvChecksPerHourValue.text = TimeFormatter.formatChecksPerHour(summary.checksPerFocusHour, summary.totalFocusMs)
         binding.tvCompletionRateValue.text = "${summary.goalCompletionRate.toInt()}%"
         binding.tvLongestFocusValue.text = TimeFormatter.formatDuration(summary.longestFocusMs)
 
-        binding.tvPhoneChecksValue.text = "${summary.totalCheckCount} phone checks"
+        binding.tvSummaryFooter.text =
+            "$sessionCount sessions · ${summary.completedSessionCount} target completed · ${summary.totalCheckCount} checks"
 
-        // Calculate total displayed phone usage time by summing truncated seconds of distraction apps
-        val distractionSecs = report.topAppUsages.filter { !it.isAllowed }.sumOf { it.totalDurationMs / 1000L }
-        val displayedPhoneUsageMs = distractionSecs * 1000L
-        binding.tvPhoneUsageValue.text = "${TimeFormatter.formatDuration(displayedPhoneUsageMs)} phone usage"
+        // Render Sessions Card
+        renderSessionsCard(report)
 
-        // Render dynamic app usages list
+        // Render What Pulled You Away App List
         AppUsageViewHelper.bindAppUsages(
             binding.layoutAppUsagesContainer,
             report.topAppUsages,
             requireContext().packageManager
         )
-
-        renderDayTimeline(report)
     }
 
-    private fun renderDayTimeline(report: PeriodReportData) {
+    private fun renderSessionsCard(report: PeriodReportData) {
+        val container = binding.layoutDaySessionsContainer
+        container.removeAllViews()
+
         if (report.sessions.isEmpty()) {
-            binding.tvDayTimelineContent.text = "No sessions recorded on this day."
-            binding.tvEarlyStopReasonsSummary.visibility = View.GONE
+            val emptyTv = TextView(requireContext()).apply {
+                text = "No focus sessions recorded today."
+                textSize = 13f
+                setTextColor(Color.parseColor("#777777"))
+            }
+            container.addView(emptyTv)
             return
         }
 
-        val sb = StringBuilder()
-        report.sessions.forEachIndexed { index, session ->
-            val startTime = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
-                .format(Instant.ofEpochMilli(session.startAt).atZone(zoneId))
+        val inflater = LayoutInflater.from(requireContext())
+        val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
 
-            val endTime = if (session.endAt != null) {
-                DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
-                    .format(Instant.ofEpochMilli(session.endAt).atZone(zoneId))
+        report.sessions.forEachIndexed { index, session ->
+            val itemBinding = ItemCalendarSessionBinding.inflate(inflater, container, false)
+            val startStr = timeFormatter.format(Instant.ofEpochMilli(session.startAt).atZone(zoneId))
+            val endStr = if (session.endAt != null) {
+                timeFormatter.format(Instant.ofEpochMilli(session.endAt).atZone(zoneId))
             } else "Ongoing"
 
-            val focusStr = TimeFormatter.formatDuration(session.focusMs)
+            itemBinding.tvSessionSubjectAndTime.text = "${session.subject} · $startStr–$endStr"
+            itemBinding.tvSessionFocusTime.text = "${TimeFormatter.formatDuration(session.focusMs)} focus"
+            itemBinding.tvSessionChecksBadge.text = "${session.checkCount} checks"
+
+            val longestStr = TimeFormatter.formatDuration(session.longestFocusMs)
             val phoneStr = TimeFormatter.formatDuration(session.phoneUseMs)
+            itemBinding.tvSessionSubDetails.text = "$longestStr longest · $phoneStr phone use"
 
-            sb.append("${index + 1}. [${session.subject}] $startTime - $endTime\n")
-            sb.append("   Focus: $focusStr | Phone: $phoneStr | Checks: ${session.checkCount} (${session.status})\n")
-            if (!session.stopMemo.isNullOrBlank()) {
-                sb.append("   Memo: \"${session.stopMemo}\"\n")
+            when (session.status) {
+                "COMPLETED" -> {
+                    itemBinding.tvSessionStatusTag.text = "Completed · ${session.goalMinutes}-minute target"
+                    itemBinding.tvSessionStatusTag.background = ContextCompat.getDrawable(requireContext(), R.drawable.bg_badge_completed)
+                }
+                "EARLY_STOP" -> {
+                    val reasonStr = session.stopReason?.let { " ($it)" } ?: ""
+                    itemBinding.tvSessionStatusTag.text = "Early stop$reasonStr · ${session.goalMinutes}-minute target"
+                    itemBinding.tvSessionStatusTag.background = ContextCompat.getDrawable(requireContext(), R.drawable.bg_badge_early_stop)
+                }
+                else -> {
+                    itemBinding.tvSessionStatusTag.text = "${session.status} · ${session.goalMinutes}-minute target"
+                    itemBinding.tvSessionStatusTag.background = ContextCompat.getDrawable(requireContext(), R.drawable.bg_badge_early_stop)
+                }
             }
-            sb.append("\n")
-        }
 
-        binding.tvDayTimelineContent.text = sb.toString().trim()
+            itemBinding.sessionItemDivider.visibility = if (index == report.sessions.size - 1) View.GONE else View.VISIBLE
 
-        if (report.earlyStopReasons.isNotEmpty()) {
-            val reasonsText = report.earlyStopReasons.joinToString { "${it.reasonCode} (${it.count})" }
-            binding.tvEarlyStopReasonsSummary.text = "Early Stop reasons: $reasonsText"
-            binding.tvEarlyStopReasonsSummary.visibility = View.VISIBLE
-        } else {
-            binding.tvEarlyStopReasonsSummary.visibility = View.GONE
+            itemBinding.root.setOnClickListener {
+                val intent = Intent(requireContext(), FinishActivity::class.java).apply {
+                    putExtra(FinishActivity.EXTRA_SESSION_ID, session.id)
+                }
+                startActivity(intent)
+            }
+
+            container.addView(itemBinding.root)
         }
     }
 }

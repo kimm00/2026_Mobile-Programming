@@ -39,7 +39,7 @@
                 android:textColor="@color/focus_text_dark"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                tools:text="Nov 1, 2026 – Nov 30, 2026" />
+                tools:text="September 2026" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnNextPeriod"
@@ -51,18 +51,44 @@
                 app:strokeColor="@color/focus_border_green" />
         </LinearLayout>
 
-        <!-- Metrics Summary Grid -->
+        <!-- Card 1: Metrics Summary Card -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:background="@drawable/bg_rounded_card_white"
+            android:background="@drawable/bg_rounded_card"
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Avatar + Headline Row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:contentDescription="Calm stone"
+                    android:src="@drawable/ic_trace_calm_stone" />
+
+                <TextView
+                    android:id="@+id/tvSummaryHeadline"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:text="You stayed focused across 52 sessions this month."
+                    android:textColor="@color/focus_text_dark"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <!-- 2x2 Grid -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 android:orientation="horizontal">
 
                 <LinearLayout
@@ -75,16 +101,16 @@
                         android:id="@+id/tvTotalFocusValue"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0h 0m"
+                        android:text="30h 20m"
                         android:textColor="@color/focus_text_dark"
-                        android:textSize="22sp"
+                        android:textSize="24sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Total Focus Time"
-                        android:textColor="@color/focus_text_secondary"
+                        android:text="Total focus time"
+                        android:textColor="@color/focus_text_dark"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -98,16 +124,16 @@
                         android:id="@+id/tvChecksPerHourValue"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0.0"
+                        android:text="4.6"
                         android:textColor="@color/focus_text_dark"
-                        android:textSize="22sp"
+                        android:textSize="24sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Phone checks per focus hour"
-                        android:textColor="@color/focus_text_secondary"
+                        android:text="Checks per focus hour"
+                        android:textColor="@color/focus_text_dark"
                         android:textSize="12sp" />
                 </LinearLayout>
             </LinearLayout>
@@ -133,16 +159,16 @@
                         android:id="@+id/tvCompletionRateValue"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0%"
+                        android:text="85%"
                         android:textColor="@color/focus_text_dark"
-                        android:textSize="22sp"
+                        android:textSize="24sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Goal Completion Rate"
-                        android:textColor="@color/focus_text_secondary"
+                        android:text="Goal completion rate"
+                        android:textColor="@color/focus_text_dark"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -156,28 +182,37 @@
                         android:id="@+id/tvLongestFocusValue"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0 min"
+                        android:text="60 min"
                         android:textColor="@color/focus_text_dark"
-                        android:textSize="22sp"
+                        android:textSize="24sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Longest Uninterrupted"
-                        android:textColor="@color/focus_text_secondary"
+                        android:text="Longest focus period"
+                        android:textColor="@color/focus_text_dark"
                         android:textSize="12sp" />
                 </LinearLayout>
             </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvSummaryFooter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="52 sessions · 44 targets completed · 129 checks"
+                android:textColor="@color/focus_text_dark"
+                android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- Chart Card Container -->
+        <!-- Card 2: Focus time by week Card -->
         <LinearLayout
             android:id="@+id/cardChartContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:background="@drawable/bg_rounded_card_white"
+            android:background="@drawable/bg_rounded_card"
             android:orientation="vertical"
             android:padding="16dp">
 
@@ -185,7 +220,7 @@
                 android:id="@+id/tvChartTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Weekly Focus Time"
+                android:text="Focus time by week"
                 android:textColor="@color/focus_text_dark"
                 android:textSize="18sp"
                 android:textStyle="bold" />
@@ -195,8 +230,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="Focus minutes per week"
-                android:textColor="@color/focus_text_secondary"
+                android:text="1,820 minutes focused across the month"
+                android:textColor="@color/focus_text_dark"
                 android:textSize="12sp" />
 
             <com.github.mikephil.charting.charts.BarChart
@@ -206,48 +241,85 @@
                 android:layout_marginTop="12dp" />
         </LinearLayout>
 
-        <!-- Phone Usage & Checks Summary -->
+        <!-- Card 3: What pulled you away Card -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:background="@drawable/bg_rounded_card_white"
+            android:background="@drawable/bg_rounded_card"
             android:orientation="vertical"
             android:padding="16dp">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Phone Usage &amp; Checks"
+                android:text="What pulled you away"
                 android:textColor="@color/focus_text_dark"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvPhoneChecksValue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="0 phone checks"
+                android:layout_marginTop="2dp"
+                android:text="During focus sessions · allowed apps excluded"
                 android:textColor="@color/focus_text_dark"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/tvPhoneUsageValue"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="0m phone usage"
-                android:textColor="@color/focus_text_dark"
-                android:textSize="14sp" />
+                android:textSize="12sp" />
 
             <LinearLayout
                 android:id="@+id/layoutAppUsagesContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="12dp"
                 android:orientation="vertical" />
         </LinearLayout>
+
+        <!-- Card 4: Early Stop reasons Card -->
+        <LinearLayout
+            android:id="@+id/cardEarlyStops"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_rounded_card"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Early Stop reasons"
+                android:textColor="@color/focus_text_dark"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvEarlyStopsSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="8 early stops this month"
+                android:textColor="@color/focus_text_dark"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tvEarlyStopReasonsDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Finished early 3 · Lost focus 3 · Urgent task 2"
+                android:textColor="@color/focus_text_dark"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Footer Encouragement Text -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:gravity="center"
+            android:text="Patterns help you improve, not judge your day. Explore your Focus Insight for a practical next step."
+            android:textColor="@color/focus_text_dark"
+            android:textSize="12sp" />
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
