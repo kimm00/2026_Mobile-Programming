@@ -1,13 +1,12 @@
 package com.example.focustrace.ui
 
 import android.Manifest
-import android.app.AppOpsManager
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
-import android.widget.Toast
+import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -15,11 +14,14 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.focustrace.MainActivity
+import com.example.focustrace.R
 import com.example.focustrace.databinding.ActivityOnboardingBinding
+import com.example.focustrace.detection.UsageStatsHelper
 
 class OnboardingActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityOnboardingBinding
+    private var isBatteryLaterDismissed = false
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -49,11 +51,16 @@ class OnboardingActivity : AppCompatActivity() {
         }
 
         binding.btnGrantNotifications.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                Toast.makeText(this, "Notifications already allowed on this Android version", Toast.LENGTH_SHORT).show()
-            }
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        binding.btnOpenBatterySettings.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        }
+
+        binding.btnBatteryLater.setOnClickListener {
+            isBatteryLaterDismissed = true
+            updatePermissionStatuses()
         }
 
         binding.btnContinueOnboarding.setOnClickListener {
@@ -68,38 +75,35 @@ class OnboardingActivity : AppCompatActivity() {
     }
 
     private fun updatePermissionStatuses() {
-        val usageGranted = isUsagePermissionGranted()
-        binding.tvStatusUsage.text = if (usageGranted) "Allowed" else "Needs Setup"
+        val usageGranted = UsageStatsHelper.hasUsageStatsPermission(this)
+        binding.tvStatusUsage.text = if (usageGranted) "Allowed ✓" else "Not allowed"
         binding.btnGrantUsage.isEnabled = !usageGranted
 
-        val notificationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
-        binding.tvStatusNotifications.text = if (notificationGranted) "Allowed" else "Needs Setup"
+        val notificationGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+        binding.tvStatusNotifications.text = if (notificationGranted) "Allowed ✓" else "Not allowed"
         binding.btnGrantNotifications.isEnabled = !notificationGranted
-    }
 
-    private fun isUsagePermissionGranted(): Boolean {
-        val appOps = getSystemService(APP_OPS_SERVICE) as AppOpsManager
-        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            appOps.unsafeCheckOpNoThrow(
-                AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
-                packageName
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            appOps.checkOpNoThrow(
-                AppOpsManager.OPSTR_GET_USAGE_STATS,
-                android.os.Process.myUid(),
-                packageName
-            )
-        }
-        return mode == AppOpsManager.MODE_ALLOWED
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        val batteryGranted = powerManager.isIgnoringBatteryOptimizations(packageName)
+        binding.tvStatusBattery.text = if (batteryGranted) "Allowed ✓" else "Not allowed"
+        val showBatteryButtons = !batteryGranted && !isBatteryLaterDismissed
+        binding.btnOpenBatterySettings.visibility = if (showBatteryButtons) View.VISIBLE else View.GONE
+        binding.btnBatteryLater.visibility = if (showBatteryButtons) View.VISIBLE else View.GONE
+
+        val canContinue = usageGranted && notificationGranted
+        binding.btnContinueOnboarding.isEnabled = canContinue
+        binding.btnContinueOnboarding.alpha = if (canContinue) 1.0f else 0.4f
+
+        val count = listOf(usageGranted, notificationGranted, batteryGranted).count { it }
+        binding.tvProgressCount.text = "$count of 3 completed"
+
+        val activeColor = ContextCompat.getColor(this, R.color.focus_brand_green)
+        val inactiveColor = ContextCompat.getColor(this, R.color.focus_border_green)
+        binding.viewProgress1.setBackgroundColor(if (count >= 1) activeColor else inactiveColor)
+        binding.viewProgress2.setBackgroundColor(if (count >= 2) activeColor else inactiveColor)
+        binding.viewProgress3.setBackgroundColor(if (count >= 3) activeColor else inactiveColor)
     }
 }

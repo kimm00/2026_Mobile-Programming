@@ -52,11 +52,67 @@
             android:paddingTop="12dp"
             android:paddingBottom="24dp">
 
+            <!-- Progress Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="A few things before you focus"
+                    android:textColor="@color/focus_text_dark"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tv_progress_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0 of 3 completed"
+                    android:textColor="@color/focus_text_dark"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/view_progress_1"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@color/focus_border_green" />
+
+                <View
+                    android:id="@+id/view_progress_2"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:background="@color/focus_border_green" />
+
+                <View
+                    android:id="@+id/view_progress_3"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:background="@color/focus_border_green" />
+            </LinearLayout>
+
             <!-- Headline -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Set up permissions for FocusTrace"
+                android:layout_marginTop="16dp"
+                android:text="Make room for focus."
                 android:textColor="@color/focus_text_dark"
                 android:textSize="22sp"
                 android:textStyle="bold" />
@@ -65,7 +121,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="FocusTrace needs usage access to detect phone checks during focus sessions."
+                android:text="These permissions help FocusTrace trace your sessions. You're always in control."
                 android:textColor="@color/focus_text_dark"
                 android:textSize="13sp" />
 
@@ -74,7 +130,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:background="@drawable/bg_rounded_card_white"
+                android:background="@drawable/bg_rounded_card"
                 android:orientation="vertical"
                 android:padding="16dp">
 
@@ -84,22 +140,39 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:contentDescription="Usage Access"
+                        android:src="@drawable/ic_chart"
+                        app:tint="@color/focus_text_dark" />
+
                     <TextView
-                        android:layout_width="0dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Usage Access"
+                        android:layout_marginStart="8dp"
+                        android:text="Usage access"
                         android:textColor="@color/focus_text_dark"
-                        android:textSize="18sp"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
-                        android:id="@+id/tv_status_usage"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
                         android:background="@drawable/bg_status_badge"
-                        android:paddingHorizontal="10dp"
-                        android:paddingVertical="4dp"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="2dp"
+                        android:text="Required"
+                        android:textColor="@color/focus_text_dark"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/tv_status_usage"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="end"
                         android:text="Needs Setup"
                         android:textColor="@color/focus_text_dark"
                         android:textSize="12sp"
@@ -110,9 +183,32 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="Required to detect which apps were opened during an unlock episode."
-                    android:textColor="@color/focus_text_secondary"
+                    android:text="To see which apps you open during a focus session."
+                    android:textColor="@color/focus_text_dark"
                     android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:contentDescription="Shield"
+                        android:src="@drawable/ic_shield_check"
+                        app:tint="@color/focus_text_dark" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="App names never leave your phone."
+                        android:textColor="@color/focus_text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_grant_usage"
@@ -120,7 +216,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="Grant Usage Access"
+                    android:text="Open Settings"
                     android:textColor="@color/focus_text_dark"
                     app:strokeColor="@color/focus_border_green" />
             </LinearLayout>
@@ -129,8 +225,8 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:background="@drawable/bg_rounded_card_white"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_rounded_card"
                 android:orientation="vertical"
                 android:padding="16dp">
 
@@ -140,22 +236,39 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:contentDescription="Notifications"
+                        android:src="@drawable/ic_bell"
+                        app:tint="@color/focus_text_dark" />
+
                     <TextView
-                        android:layout_width="0dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
                         android:text="Notifications"
                         android:textColor="@color/focus_text_dark"
-                        android:textSize="18sp"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <TextView
-                        android:id="@+id/tv_status_notifications"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
                         android:background="@drawable/bg_status_badge"
-                        android:paddingHorizontal="10dp"
-                        android:paddingVertical="4dp"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="2dp"
+                        android:text="Required"
+                        android:textColor="@color/focus_text_dark"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/tv_status_notifications"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="end"
                         android:text="Needs Setup"
                         android:textColor="@color/focus_text_dark"
                         android:textSize="12sp"
@@ -166,8 +279,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="Required for ongoing session timers and refocus alerts."
-                    android:textColor="@color/focus_text_secondary"
+                    android:text="To show your remaining focus time in the notification bar."
+                    android:textColor="@color/focus_text_dark"
                     android:textSize="13sp" />
 
                 <com.google.android.material.button.MaterialButton
@@ -176,9 +289,91 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="Allow Notifications"
+                    android:text="Allow"
                     android:textColor="@color/focus_text_dark"
                     app:strokeColor="@color/focus_border_green" />
+            </LinearLayout>
+
+            <!-- Permission Card 3: Battery Optimization -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_rounded_card"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:contentDescription="Battery optimization"
+                        android:src="@drawable/ic_battery"
+                        app:tint="@color/focus_text_dark" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="Battery optimization"
+                        android:textColor="@color/focus_text_dark"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_status_badge"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="2dp"
+                        android:text="Recommended"
+                        android:textColor="@color/focus_text_dark"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/tv_status_battery"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="end"
+                        android:text="Needs Setup"
+                        android:textColor="@color/focus_text_dark"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="So your session keeps running in the background."
+                    android:textColor="@color/focus_text_dark"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_open_battery_settings"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Open Settings"
+                    android:textColor="@color/focus_text_dark"
+                    app:strokeColor="@color/focus_border_green" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_battery_later"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Set up later"
+                    android:textColor="@color/focus_text_dark" />
             </LinearLayout>
 
             <!-- Bottom Action Button -->
@@ -186,7 +381,7 @@
                 android:id="@+id/btn_continue_onboarding"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_marginTop="28dp"
+                android:layout_marginTop="24dp"
                 android:background="@drawable/bg_button_primary"
                 android:clickable="true"
                 android:focusable="true"
@@ -196,11 +391,20 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Continue to Home"
+                    android:text="Continue"
                     android:textColor="@color/focus_text_dark"
                     android:textSize="18sp"
                     android:textStyle="bold" />
             </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:text="Allow usage access and notifications to continue. Both are required."
+                android:textColor="@color/focus_text_dark"
+                android:textSize="12sp" />
 
         </LinearLayout>
 
