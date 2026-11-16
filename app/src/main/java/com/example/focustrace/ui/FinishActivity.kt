@@ -126,18 +126,55 @@ class FinishActivity : AppCompatActivity() {
         }
     }
 
+    private fun formatShortTime(ms: Long): String {
+        return com.example.focustrace.ui.report.TimeFormatter.formatDuration(ms)
+    }
+
+    private fun formatLongFocusedText(ms: Long): String {
+        val totalSecs = (ms.coerceAtLeast(0L)) / 1000L
+        if (totalSecs == 0L) return "0 seconds"
+
+        val mins = totalSecs / 60L
+        val secs = totalSecs % 60L
+
+        val minPart = when (mins) {
+            0L -> null
+            1L -> "1 minute"
+            else -> "$mins minutes"
+        }
+
+        val secPart = when (secs) {
+            0L -> null
+            1L -> "1 second"
+            else -> "$secs seconds"
+        }
+
+        return when {
+            minPart != null && secPart != null -> "$minPart $secPart"
+            minPart != null -> minPart
+            secPart != null -> secPart
+            else -> "0 seconds"
+        }
+    }
+
     private fun bindSessionDetail(
         session: SessionEntity,
         usages: List<com.example.focustrace.data.db.entity.AppUsageEntity>
     ) {
         currentSession = session
 
-        val focusMins = session.focusMs / 60000
-        val phoneUseMins = session.phoneUseMs / 60000
-        val phoneUseSecs = (session.phoneUseMs % 60000) / 1000
+        // Calculate total displayed phone usage seconds by summing truncated seconds of each distraction app
+        val nonAllowedAppSeconds = usages
+            .filter { it.isCounted && !it.isAllowed && it.durationMs > 0L }
+            .groupBy { it.packageName }
+            .values
+            .sumOf { appUsages -> appUsages.sumOf { it.durationMs } / 1000L }
+
+        val dispPhoneMins = nonAllowedAppSeconds / 60L
+        val dispPhoneSecs = nonAllowedAppSeconds % 60L
 
         binding.tvHeroHeading.text = if (session.status == "COMPLETED") "Nice work!" else "Session Ended"
-        binding.tvHeroSubtext.text = "You stayed focused for $focusMins minutes."
+        binding.tvHeroSubtext.text = "You stayed focused for ${formatLongFocusedText(session.focusMs)}."
 
         binding.tvStatusBadge.text = when (session.status) {
             "COMPLETED" -> "Completed"
@@ -148,12 +185,10 @@ class FinishActivity : AppCompatActivity() {
         val planText = if (!session.plan.isNullOrBlank()) " · Plan: ${session.plan}" else ""
         binding.tvSessionMeta.text = "Subject: ${session.subject}$planText"
 
-        binding.tvMetricFocus.text = "${focusMins}m"
+        binding.tvMetricFocus.text = formatShortTime(session.focusMs)
         binding.tvMetricChecks.text = session.checkCount.toString()
-
-        val longestMins = session.longestFocusMs / 60000
-        binding.tvMetricLongest.text = "${longestMins} min"
-        binding.tvMetricPhoneUse.text = if (phoneUseMins > 0) "${phoneUseMins}m ${phoneUseSecs}s" else "${phoneUseSecs}s"
+        binding.tvMetricLongest.text = formatShortTime(session.longestFocusMs)
+        binding.tvMetricPhoneUse.text = if (dispPhoneMins > 0L) "${dispPhoneMins}m ${dispPhoneSecs}s" else "${dispPhoneSecs}s"
 
         // Reflection
         if (!session.reflection.isNullOrBlank()) {
@@ -170,7 +205,7 @@ class FinishActivity : AppCompatActivity() {
 
         // Session Summary
         binding.tvAiSummaryContent.text = if (session.status == "COMPLETED") {
-            "You completed your $focusMins-minute session as planned for ${session.subject}."
+            "You completed your ${formatShortTime(session.focusMs)} session as planned for ${session.subject}."
         } else {
             "Session stopped early (${session.stopReason ?: "User choice"}). Try shorter intervals next time."
         }
@@ -358,6 +393,13 @@ class FinishActivity : AppCompatActivity() {
         }
     }
 
+    private data class AppUsageSummary(
+        val packageName: String,
+        val appLabel: String,
+        val totalMs: Long,
+        val seconds: Long
+    )
+
     private fun bindDistractions(usages: List<AppUsageEntity>) {
         val container = binding.layoutDistractions
         container.removeAllViews()
@@ -367,17 +409,41 @@ class FinishActivity : AppCompatActivity() {
 
         val textColor = Color.parseColor("#45593A")
 
-        // Group by package name to keep each app in one row.
-        val topApps = usages
+        // Group non-allowed distractions by package name
+        val allDistractions = usages
             .filter { it.isCounted && !it.isAllowed && it.durationMs > 0L }
             .groupBy { it.packageName }
             .entries
-            .sortedByDescending { entry ->
-                entry.value.sumOf { it.durationMs }
+            .map { entry ->
+                val appLabel = entry.value.firstOrNull { it.appLabel.isNotBlank() }?.appLabel ?: entry.key
+                val totalMs = entry.value.sumOf { it.durationMs }
+                AppUsageSummary(
+                    packageName = entry.key,
+                    appLabel = appLabel,
+                    totalMs = totalMs,
+                    seconds = totalMs / 1000L
+                )
             }
-            .take(3)
+            .sortedWith(compareByDescending<AppUsageSummary> { it.totalMs }.thenByDescending { it.seconds })
 
-        if (topApps.isEmpty()) {
+        // Group allowed apps by package name
+        val allowedApps = usages
+            .filter { it.isAllowed && it.durationMs > 0L }
+            .groupBy { it.packageName }
+            .entries
+            .map { entry ->
+                val appLabel = entry.value.firstOrNull { it.appLabel.isNotBlank() }?.appLabel ?: entry.key
+                val totalMs = entry.value.sumOf { it.durationMs }
+                AppUsageSummary(
+                    packageName = entry.key,
+                    appLabel = appLabel,
+                    totalMs = totalMs,
+                    seconds = totalMs / 1000L
+                )
+            }
+            .sortedByDescending { it.totalMs }
+
+        if (allDistractions.isEmpty() && allowedApps.isEmpty()) {
             container.addView(
                 android.widget.TextView(this).apply {
                     text = "Nothing pulled you away this time."
@@ -388,108 +454,171 @@ class FinishActivity : AppCompatActivity() {
             return
         }
 
-        topApps.forEachIndexed { index, entry ->
-            val packageName = entry.key
-            val appUsages = entry.value
-            val appName = appUsages
-                .firstOrNull { it.appLabel.isNotBlank() }
-                ?.appLabel ?: packageName
+        var rankCounter = 1
 
-            val durationMs = appUsages.sumOf { it.durationMs }
+        // Render all distraction apps
+        allDistractions.forEach { summary ->
+            addAppUsageRow(
+                container = container,
+                rank = rankCounter++,
+                packageName = summary.packageName,
+                appName = summary.appLabel,
+                durationMs = summary.seconds * 1000L,
+                isAllowed = false,
+                dp = ::dp,
+                textColor = textColor
+            )
+        }
 
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
+        // Render all allowed apps
+        allowedApps.forEach { summary ->
+            addAppUsageRow(
+                container = container,
+                rank = rankCounter++,
+                packageName = summary.packageName,
+                appName = summary.appLabel,
+                durationMs = summary.seconds * 1000L,
+                isAllowed = true,
+                dp = ::dp,
+                textColor = textColor
+            )
+        }
+    }
 
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
+    private fun addAppUsageRow(
+        container: LinearLayout,
+        rank: Int,
+        packageName: String,
+        appName: String,
+        durationMs: Long,
+        isAllowed: Boolean,
+        dp: (Int) -> Int,
+        textColor: Int
+    ) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
 
-                setPadding(0, dp(10), 0, dp(10))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+
+            setPadding(0, dp(10), 0, dp(10))
+        }
+
+        val rankView = android.widget.TextView(this).apply {
+            text = rank.toString()
+            textSize = 14f
+            setTextColor(if (isAllowed) Color.parseColor("#555555") else textColor)
+            gravity = android.view.Gravity.CENTER
+
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(if (isAllowed) Color.parseColor("#E0E0E0") else Color.parseColor("#FFAE8C"))
             }
 
-            val rankView = android.widget.TextView(this).apply {
-                text = "${index + 1}"
-                textSize = 14f
-                setTextColor(textColor)
-                gravity = android.view.Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(dp(28), dp(28))
+        }
 
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(Color.parseColor("#FFAE8C"))
-                }
-
-                layoutParams = LinearLayout.LayoutParams(dp(28), dp(28))
+        val iconView = android.widget.ImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                dp(40),
+                dp(40)
+            ).apply {
+                marginStart = dp(12)
+                marginEnd = dp(12)
             }
 
-            val iconView = android.widget.ImageView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    dp(40),
-                    dp(40)
-                ).apply {
-                    marginStart = dp(12)
-                    marginEnd = dp(12)
-                }
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
 
-                scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+        val appIcon = try {
+            packageManager.getApplicationIcon(packageName)
+        } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+            packageManager.defaultActivityIcon
+        }
 
-                // The adjacent app name already describes this icon.
-                importantForAccessibility =
-                    View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        iconView.setImageDrawable(appIcon)
+
+        val textColumn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        }
+
+        val nameView = android.widget.TextView(this).apply {
+            text = appName
+            textSize = 16f
+            setTextColor(textColor)
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
+
+        val durationView = android.widget.TextView(this).apply {
+            text = if (isAllowed) {
+                "${formatTimelineTime(durationMs)} · not counted"
+            } else {
+                formatTimelineTime(durationMs)
             }
+            textSize = 13f
+            setTextColor(if (isAllowed) Color.parseColor("#777777") else textColor)
 
-            // Fall back to a generic icon if the app cannot be resolved.
-            val appIcon = try {
-                packageManager.getApplicationIcon(packageName)
-            } catch (
-                e: android.content.pm.PackageManager.NameNotFoundException
-            ) {
-                packageManager.defaultActivityIcon
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(4)
             }
+        }
 
-            iconView.setImageDrawable(appIcon)
+        textColumn.addView(nameView)
+        textColumn.addView(durationView)
 
-            val textColumn = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(
-                    0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    1f
-                )
+        val barIndicator = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(50), dp(8)).apply {
+                marginStart = dp(8)
+                marginEnd = dp(8)
             }
+            background = GradientDrawable().apply {
+                cornerRadius = dp(4).toFloat()
+                setColor(if (isAllowed) Color.parseColor("#D8E5D0") else Color.parseColor("#FFAE8C"))
+            }
+        }
 
-            val nameView = android.widget.TextView(this).apply {
-                text = appName
-                textSize = 16f
+        row.addView(rankView)
+        row.addView(iconView)
+        row.addView(textColumn)
+        row.addView(barIndicator)
+
+        if (isAllowed) {
+            val allowedBadge = android.widget.TextView(this).apply {
+                text = "Allowed"
+                textSize = 12f
                 setTextColor(textColor)
                 setTypeface(null, android.graphics.Typeface.BOLD)
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-            }
+                setPadding(dp(10), dp(4), dp(10), dp(4))
 
-            val durationView = android.widget.TextView(this).apply {
-                text = formatTimelineTime(durationMs)
-                textSize = 14f
-                setTextColor(textColor)
-
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(12).toFloat()
+                    setColor(Color.parseColor("#E2E7DE"))
+                }
                 layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    topMargin = dp(4)
+                    marginStart = dp(4)
                 }
             }
-
-            textColumn.addView(nameView)
-            textColumn.addView(durationView)
-
-            row.addView(rankView)
-            row.addView(iconView)
-            row.addView(textColumn)
-
-            container.addView(row)
+            row.addView(allowedBadge)
         }
+
+        container.addView(row)
     }
 
     private fun showPhotoSourceSheet() {

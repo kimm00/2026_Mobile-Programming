@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:orientation="vertical"
+    android:paddingHorizontal="4dp"
+    android:paddingVertical="10dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- Left Details Column -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <!-- Line 1: Subject · Start-End Time -->
+            <TextView
+                android:id="@+id/tvSessionSubjectAndTime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/focus_text_dark"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="Chemistry · 7:00–7:48 PM" />
+
+            <!-- Line 2: Focus Time + Checks Badge -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvSessionFocusTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/focus_text_dark"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="45 min focus" />
+
+                <TextView
+                    android:id="@+id/tvSessionChecksBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_badge_checks"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="3dp"
+                    android:textColor="@color/focus_text_dark"
+                    android:textSize="12sp"
+                    tools:text="4 checks" />
+            </LinearLayout>
+
+            <!-- Line 3: Longest Focus · Phone Use -->
+            <TextView
+                android:id="@+id/tvSessionSubDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/focus_text_dark"
+                android:textSize="12sp"
+                tools:text="20 min longest · 3 min phone use" />
+
+            <!-- Line 4: Status Target Tag -->
+            <TextView
+                android:id="@+id/tvSessionStatusTag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_badge_early_stop"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:textColor="@color/focus_text_dark"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                tools:text="Early stop · 60-minute target" />
+
+        </LinearLayout>
+
+        <!-- Right Chevron -->
+        <ImageView
+            android:id="@+id/ivChevronRight"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="Detail"
+            android:src="@drawable/ic_chevron_right"
+            app:tint="@color/focus_text_dark" />
+
+    </LinearLayout>
+
+    <View
+        android:id="@+id/sessionItemDivider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:background="@color/focus_divider" />
+
+</LinearLayout>

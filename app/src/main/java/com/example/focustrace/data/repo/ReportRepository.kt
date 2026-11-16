@@ -13,6 +13,8 @@ interface ReportRepository {
         periodEnd: Long,
         zoneId: ZoneId
     ): PeriodReportData
+
+    suspend fun deleteSession(sessionId: Long): Boolean
 }
 
 class SampleReportRepository(
@@ -33,5 +35,9 @@ class SampleReportRepository(
             phoneEvents = SampleData.PHONE_EVENTS,
             appUsages = SampleData.APP_USAGES
         )
+    }
+
+    override suspend fun deleteSession(sessionId: Long): Boolean {
+        return true
     }
 }

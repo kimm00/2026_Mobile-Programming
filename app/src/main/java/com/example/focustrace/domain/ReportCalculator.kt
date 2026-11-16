@@ -70,7 +70,8 @@ class ReportCalculator(
         periodEnd: Long,
         sessions: List<ReportSession>,
         phoneEvents: List<ReportPhoneEvent> = emptyList(),
-        appUsages: List<ReportAppUsage> = emptyList()
+        appUsages: List<ReportAppUsage> = emptyList(),
+        previousSummary: FocusSummary? = null
     ): PeriodReportData {
         // 1. Filter sessions that started within period range and are not currently RUNNING
         val finishedSessions = sessions.filter { session ->
@@ -117,7 +118,8 @@ class ReportCalculator(
             topAppUsages = topAppUsages,
             earlyStopReasons = earlyStopReasons,
             sessions = finishedSessions,
-            phoneEvents = periodPhoneEvents
+            phoneEvents = periodPhoneEvents,
+            previousSummary = previousSummary
         )
     }
 
@@ -250,17 +252,35 @@ class ReportCalculator(
     }
 
     fun calculateTopAppUsages(appUsages: List<ReportAppUsage>): List<AppUsageStat> {
-        return appUsages
-            .groupBy { it.packageName to it.appLabel }
+        val distractionApps = appUsages
+            .filter { it.isCounted && !it.isAllowed && it.durationMs > 0L }
+            .groupBy { Pair(it.packageName, false) }
             .map { (key, usages) ->
+                val label = usages.firstOrNull { it.appLabel.isNotBlank() }?.appLabel ?: key.first
                 AppUsageStat(
                     packageName = key.first,
-                    appLabel = key.second,
+                    appLabel = label,
                     totalDurationMs = usages.sumOf { it.durationMs },
-                    isAllowed = usages.firstOrNull()?.isAllowed ?: false
+                    isAllowed = false
                 )
             }
             .sortedByDescending { it.totalDurationMs }
+
+        val allowedApps = appUsages
+            .filter { it.isAllowed && it.durationMs > 0L }
+            .groupBy { Pair(it.packageName, true) }
+            .map { (key, usages) ->
+                val label = usages.firstOrNull { it.appLabel.isNotBlank() }?.appLabel ?: key.first
+                AppUsageStat(
+                    packageName = key.first,
+                    appLabel = label,
+                    totalDurationMs = usages.sumOf { it.durationMs },
+                    isAllowed = true
+                )
+            }
+            .sortedByDescending { it.totalDurationMs }
+
+        return distractionApps + allowedApps
     }
 
     fun calculateEarlyStopReasons(sessions: List<ReportSession>): List<EarlyStopReasonStat> {
