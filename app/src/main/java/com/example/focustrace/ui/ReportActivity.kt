@@ -1,15 +1,19 @@
 package com.example.focustrace.ui
 
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Menu
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.focustrace.MainActivity
+import com.example.focustrace.R
 import com.example.focustrace.data.db.AppDatabase
 import com.example.focustrace.data.model.PeriodType
 import com.example.focustrace.data.model.ReportSession
@@ -20,8 +24,6 @@ import com.example.focustrace.ui.report.CalendarSessionAdapter
 import com.example.focustrace.ui.report.ReportPagerAdapter
 import com.example.focustrace.ui.report.TimeFormatter
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -79,41 +81,88 @@ class ReportActivity : AppCompatActivity() {
     }
 
     private fun setupViewModeToggle() {
-        binding.tabLayoutViewMode.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                if (tab?.position == 1) {
-                    // Calendar view
-                    binding.layoutOverviewContainer.visibility = View.GONE
-                    binding.layoutCalendarContainer.visibility = View.VISIBLE
-                    loadCalendarDaySessions(selectedCalendarDate)
-                    loadMonthSessionDots(YearMonth.from(selectedCalendarDate))
-                } else {
-                    // Overview view
-                    binding.layoutOverviewContainer.visibility = View.VISIBLE
-                    binding.layoutCalendarContainer.visibility = View.GONE
-                }
-            }
+        val darkGreen = ContextCompat.getColor(this, R.color.focus_text_dark)
+        val white = Color.WHITE
 
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
-        })
+        fun updateViewMode(isOverview: Boolean) {
+            if (isOverview) {
+                binding.btnToggleOverview.setBackgroundResource(R.drawable.bg_pill_selected)
+                binding.btnToggleOverview.setTextColor(white)
+                binding.btnToggleOverview.setTypeface(null, Typeface.BOLD)
+
+                binding.btnToggleCalendar.background = null
+                binding.btnToggleCalendar.setTextColor(darkGreen)
+                binding.btnToggleCalendar.setTypeface(null, Typeface.NORMAL)
+
+                binding.layoutOverviewContainer.visibility = View.VISIBLE
+                binding.layoutCalendarContainer.visibility = View.GONE
+            } else {
+                binding.btnToggleCalendar.setBackgroundResource(R.drawable.bg_pill_selected)
+                binding.btnToggleCalendar.setTextColor(white)
+                binding.btnToggleCalendar.setTypeface(null, Typeface.BOLD)
+
+                binding.btnToggleOverview.background = null
+                binding.btnToggleOverview.setTextColor(darkGreen)
+                binding.btnToggleOverview.setTypeface(null, Typeface.NORMAL)
+
+                binding.layoutOverviewContainer.visibility = View.GONE
+                binding.layoutCalendarContainer.visibility = View.VISIBLE
+                loadCalendarDaySessions(selectedCalendarDate)
+                loadMonthSessionDots(YearMonth.from(selectedCalendarDate))
+            }
+        }
+
+        binding.btnToggleOverview.setOnClickListener { updateViewMode(true) }
+        binding.btnToggleCalendar.setOnClickListener { updateViewMode(false) }
+
+        // Default: Overview selected
+        updateViewMode(true)
     }
 
     private fun setupPeriodTabs() {
         val adapter = ReportPagerAdapter(this)
         binding.viewPagerReport.adapter = adapter
 
-        TabLayoutMediator(binding.tabLayoutPeriod, binding.viewPagerReport) { tab, position ->
-            tab.text = when (position) {
-                0 -> "Day"
-                1 -> "Week"
-                2 -> "Month"
-                else -> ""
+        val darkGreen = ContextCompat.getColor(this, R.color.focus_text_dark)
+
+        fun updatePeriodTab(position: Int) {
+            val tabs = listOf(binding.btnTabDay, binding.btnTabWeek, binding.btnTabMonth)
+            tabs.forEachIndexed { idx, tab ->
+                if (idx == position) {
+                    tab.setBackgroundResource(R.drawable.bg_period_tab_selected)
+                    tab.setTextColor(darkGreen)
+                    tab.setTypeface(null, Typeface.BOLD)
+                } else {
+                    tab.background = null
+                    tab.setTextColor(darkGreen)
+                    tab.setTypeface(null, Typeface.NORMAL)
+                }
             }
-        }.attach()
+        }
+
+        binding.btnTabDay.setOnClickListener {
+            binding.viewPagerReport.setCurrentItem(0, false)
+            updatePeriodTab(0)
+        }
+        binding.btnTabWeek.setOnClickListener {
+            binding.viewPagerReport.setCurrentItem(1, false)
+            updatePeriodTab(1)
+        }
+        binding.btnTabMonth.setOnClickListener {
+            binding.viewPagerReport.setCurrentItem(2, false)
+            updatePeriodTab(2)
+        }
+
+        binding.viewPagerReport.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+                updatePeriodTab(position)
+            }
+        })
 
         // Default period tab: Week (index 1)
         binding.viewPagerReport.setCurrentItem(1, false)
+        updatePeriodTab(1)
     }
 
     private fun setupCalendarView() {

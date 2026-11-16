@@ -55,26 +55,37 @@
     </LinearLayout>
 
     <!-- View Mode Toggle: Overview vs Calendar -->
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/tabLayoutViewMode"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="44dp"
         android:layout_marginHorizontal="20dp"
-        android:background="@drawable/bg_rounded_card_white"
-        app:tabIndicatorColor="@color/focus_brand_green"
-        app:tabSelectedTextColor="@color/focus_text_dark"
-        app:tabTextColor="@color/focus_text_secondary">
+        android:background="@drawable/bg_pill_container"
+        android:orientation="horizontal"
+        android:padding="4dp">
 
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Overview" />
+        <TextView
+            android:id="@+id/btnToggleOverview"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/bg_pill_selected"
+            android:gravity="center"
+            android:text="Overview"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Calendar" />
-    </com.google.android.material.tabs.TabLayout>
+        <TextView
+            android:id="@+id/btnToggleCalendar"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:gravity="center"
+            android:text="Calendar"
+            android:textColor="@color/focus_text_dark"
+            android:textSize="14sp" />
+    </LinearLayout>
 
     <!-- Main Container for Overview vs Calendar View Mode -->
     <FrameLayout
@@ -90,15 +101,49 @@
             android:orientation="vertical">
 
             <!-- Period Tabs (Day / Week / Month) -->
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/tabLayoutPeriod"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="44dp"
                 android:layout_marginHorizontal="20dp"
                 android:layout_marginTop="8dp"
-                app:tabIndicatorColor="@color/focus_brand_green"
-                app:tabSelectedTextColor="@color/focus_text_dark"
-                app:tabTextColor="@color/focus_text_secondary" />
+                android:background="@drawable/bg_period_tabs_container"
+                android:orientation="horizontal"
+                android:padding="4dp">
+
+                <TextView
+                    android:id="@+id/btnTabDay"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_period_tab_selected"
+                    android:gravity="center"
+                    android:text="Day"
+                    android:textColor="@color/focus_text_dark"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btnTabWeek"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@android:color/transparent"
+                    android:gravity="center"
+                    android:text="Week"
+                    android:textColor="@color/focus_text_dark"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/btnTabMonth"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@android:color/transparent"
+                    android:gravity="center"
+                    android:text="Month"
+                    android:textColor="@color/focus_text_dark"
+                    android:textSize="14sp" />
+            </LinearLayout>
 
             <!-- ViewPager2 for Day, Week, Month Fragments -->
             <androidx.viewpager2.widget.ViewPager2

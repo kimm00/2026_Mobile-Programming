@@ -21,14 +21,17 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <com.google.android.material.button.MaterialButton
+            <TextView
                 android:id="@+id/btnPrevPeriod"
-                style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:text="&lt;"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="‹"
                 android:textColor="@color/focus_text_dark"
-                app:strokeColor="@color/focus_border_green" />
+                android:textSize="22sp" />
 
             <TextView
                 android:id="@+id/tvReportSubtitle"
@@ -37,18 +40,21 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:textColor="@color/focus_text_dark"
-                android:textSize="14sp"
+                android:textSize="15sp"
                 android:textStyle="bold"
                 tools:text="Nov 2, 2026 – Nov 8, 2026" />
 
-            <com.google.android.material.button.MaterialButton
+            <TextView
                 android:id="@+id/btnNextPeriod"
-                style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:text="&gt;"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="›"
                 android:textColor="@color/focus_text_dark"
-                app:strokeColor="@color/focus_border_green" />
+                android:textSize="22sp" />
         </LinearLayout>
 
         <!-- Card 1: Metrics Summary Card -->
