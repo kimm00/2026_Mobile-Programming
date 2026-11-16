@@ -1,5 +1,6 @@
 package com.example.focustrace.ui.report
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,6 +9,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.example.focustrace.data.db.AppDatabase
+import com.example.focustrace.data.model.FocusSummary
 import com.example.focustrace.data.model.PeriodReportData
 import com.example.focustrace.data.model.PeriodType
 import com.example.focustrace.data.repo.ReportRepository
@@ -20,9 +22,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Locale
 
 /**
- * Fragment displaying monthly focus report, weekly chart, top app usage, and early stop reasons.
+ * Fragment displaying monthly focus report, weekly chart, checks per hour chart, time of day phone usage chart, top app usage, and early stop reasons.
  */
 class ReportMonthFragment : Fragment() {
 
@@ -99,6 +102,7 @@ class ReportMonthFragment : Fragment() {
 
     private fun renderReport(report: PeriodReportData) {
         val summary = report.summary
+        val prev = report.previousSummary
 
         // Summary Card Headline & Footer
         val sessionCount = report.sessions.size
@@ -116,11 +120,24 @@ class ReportMonthFragment : Fragment() {
         binding.tvSummaryFooter.text =
             "$sessionCount sessions · ${summary.completedSessionCount} targets completed · ${summary.totalCheckCount} checks"
 
-        // Chart Card
+        // Render Previous Period Comparison Lines
+        renderComparisonLines(summary, prev, "last month")
+
+        // Chart 1: Focus time by week
         val totalMins = summary.totalFocusMs / (60 * 1000)
         binding.tvChartTitle.text = "Focus time by week"
         binding.tvChartSubtitle.text = "$totalMins minutes focused across the month"
         FocusBarChartBinder.bindWeeklyChart(binding.barChartFocusByDay, report.weeklyStats)
+
+        // Chart 2: Checks per focus hour
+        binding.tvChecksPerHourChartSubtitle.text =
+            "${TimeFormatter.formatChecksPerHour(summary.checksPerFocusHour, summary.totalFocusMs)} checks per focus hour this month"
+        FocusBarChartBinder.bindWeeklyChecksPerHourChart(binding.barChartChecksPerHour, report.weeklyStats, report.dailyStats)
+
+        // Chart 3: Phone usage by time of day
+        val totalPhoneUseMins = report.hourlyPhoneUsage.sumOf { it.usageMs } / (60 * 1000)
+        binding.tvTimeOfDayChartSubtitle.text = "$totalPhoneUseMins min of phone use during study sessions"
+        FocusBarChartBinder.bindTimeOfDayPhoneUsageChart(binding.barChartTimeOfDay, report.hourlyPhoneUsage)
 
         // Render What Pulled You Away App List
         AppUsageViewHelper.bindAppUsages(
@@ -139,6 +156,75 @@ class ReportMonthFragment : Fragment() {
             }
         } else {
             binding.cardEarlyStops.visibility = View.GONE
+        }
+    }
+
+    private fun renderComparisonLines(
+        curr: FocusSummary,
+        prev: FocusSummary?,
+        periodName: String
+    ) {
+        if (prev == null) {
+            binding.tvTotalFocusComparison.visibility = View.GONE
+            binding.tvChecksPerHourComparison.visibility = View.GONE
+            binding.tvCompletionRateComparison.visibility = View.GONE
+            binding.tvLongestFocusComparison.visibility = View.GONE
+            return
+        }
+
+        val redColor = Color.parseColor("#E57373")
+        val blueColor = Color.parseColor("#64B5F6")
+
+        // Total focus time comparison
+        val diffFocusMs = curr.totalFocusMs - prev.totalFocusMs
+        binding.tvTotalFocusComparison.apply {
+            visibility = View.VISIBLE
+            if (diffFocusMs >= 0) {
+                text = "▲ ${TimeFormatter.formatDuration(diffFocusMs)} vs $periodName"
+                setTextColor(redColor)
+            } else {
+                text = "▼ ${TimeFormatter.formatDuration(-diffFocusMs)} vs $periodName"
+                setTextColor(blueColor)
+            }
+        }
+
+        // Checks per hour comparison
+        val diffCph = curr.checksPerFocusHour - prev.checksPerFocusHour
+        binding.tvChecksPerHourComparison.apply {
+            visibility = View.VISIBLE
+            if (diffCph >= 0) {
+                text = "▲ ${String.format(Locale.ENGLISH, "%.1f", diffCph)} vs $periodName"
+                setTextColor(blueColor)
+            } else {
+                text = "▼ ${String.format(Locale.ENGLISH, "%.1f", -diffCph)} vs $periodName"
+                setTextColor(redColor)
+            }
+        }
+
+        // Completion rate comparison
+        val diffRate = curr.goalCompletionRate - prev.goalCompletionRate
+        binding.tvCompletionRateComparison.apply {
+            visibility = View.VISIBLE
+            if (diffRate >= 0) {
+                text = "▲ ${diffRate.toInt()}% vs $periodName"
+                setTextColor(redColor)
+            } else {
+                text = "▼ ${(-diffRate).toInt()}% vs $periodName"
+                setTextColor(blueColor)
+            }
+        }
+
+        // Longest focus comparison
+        val diffLongestMs = curr.longestFocusMs - prev.longestFocusMs
+        binding.tvLongestFocusComparison.apply {
+            visibility = View.VISIBLE
+            if (diffLongestMs >= 0) {
+                text = "▲ ${TimeFormatter.formatDuration(diffLongestMs)} vs $periodName"
+                setTextColor(redColor)
+            } else {
+                text = "▼ ${TimeFormatter.formatDuration(-diffLongestMs)} vs $periodName"
+                setTextColor(blueColor)
+            }
         }
     }
 }

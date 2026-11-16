@@ -112,6 +112,18 @@
                         android:text="Total focus time"
                         android:textColor="@color/focus_text_dark"
                         android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvTotalFocusComparison"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textColor="#E57373"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        tools:text="▲ 120 min vs last month"
+                        tools:visibility="visible" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -135,6 +147,18 @@
                         android:text="Checks per focus hour"
                         android:textColor="@color/focus_text_dark"
                         android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvChecksPerHourComparison"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textColor="#E57373"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        tools:text="▼ 0.8 vs last month"
+                        tools:visibility="visible" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -170,6 +194,18 @@
                         android:text="Goal completion rate"
                         android:textColor="@color/focus_text_dark"
                         android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvCompletionRateComparison"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textColor="#E57373"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        tools:text="▲ 4% vs last month"
+                        tools:visibility="visible" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -193,6 +229,18 @@
                         android:text="Longest focus period"
                         android:textColor="@color/focus_text_dark"
                         android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvLongestFocusComparison"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textColor="#E57373"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:visibility="gone"
+                        tools:text="▲ 15 min vs last month"
+                        tools:visibility="visible" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -241,7 +289,75 @@
                 android:layout_marginTop="12dp" />
         </LinearLayout>
 
-        <!-- Card 3: What pulled you away Card -->
+        <!-- Card 3: Checks per focus hour Card -->
+        <LinearLayout
+            android:id="@+id/cardChecksPerHourChart"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_rounded_card"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Checks per focus hour"
+                android:textColor="@color/focus_text_dark"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvChecksPerHourChartSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="4.6 checks per focus hour this month"
+                android:textColor="@color/focus_text_dark"
+                android:textSize="12sp" />
+
+            <com.github.mikephil.charting.charts.BarChart
+                android:id="@+id/barChartChecksPerHour"
+                android:layout_width="match_parent"
+                android:layout_height="180dp"
+                android:layout_marginTop="12dp" />
+        </LinearLayout>
+
+        <!-- Card 4: Phone usage by time of day Card -->
+        <LinearLayout
+            android:id="@+id/cardTimeOfDayChart"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_rounded_card"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Phone usage by time of day"
+                android:textColor="@color/focus_text_dark"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvTimeOfDayChartSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="90 min of phone use during study sessions"
+                android:textColor="@color/focus_text_dark"
+                android:textSize="12sp" />
+
+            <com.github.mikephil.charting.charts.BarChart
+                android:id="@+id/barChartTimeOfDay"
+                android:layout_width="match_parent"
+                android:layout_height="180dp"
+                android:layout_marginTop="12dp" />
+        </LinearLayout>
+
+        <!-- Card 5: What pulled you away Card -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -274,7 +390,7 @@
                 android:orientation="vertical" />
         </LinearLayout>
 
-        <!-- Card 4: Early Stop reasons Card -->
+        <!-- Card 6: Early Stop reasons Card -->
         <LinearLayout
             android:id="@+id/cardEarlyStops"
             android:layout_width="match_parent"

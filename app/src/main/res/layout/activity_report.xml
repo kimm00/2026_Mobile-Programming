@@ -124,66 +124,18 @@
                 android:paddingTop="12dp"
                 android:paddingBottom="24dp">
 
-                <!-- Calendar Card -->
-                <LinearLayout
+                <!-- Custom Focus Calendar Card -->
+                <com.example.focustrace.ui.report.CustomCalendarView
+                    android:id="@+id/customCalendarView"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/bg_rounded_card_white"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <!-- Month Navigation -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_prev_month"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:text="&lt;"
-                            android:textColor="@color/focus_text_dark"
-                            app:strokeColor="@color/focus_border_green" />
-
-                        <TextView
-                            android:id="@+id/tv_month_label"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:gravity="center"
-                            android:text="November 2026"
-                            android:textColor="@color/focus_text_dark"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btn_next_month"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:text="&gt;"
-                            android:textColor="@color/focus_text_dark"
-                            app:strokeColor="@color/focus_border_green" />
-                    </LinearLayout>
-
-                    <!-- Calendar View -->
-                    <CalendarView
-                        android:id="@+id/calendar_view"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp" />
-
-                </LinearLayout>
+                    android:layout_height="wrap_content" />
 
                 <!-- Selected Day Session List Card -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:background="@drawable/bg_rounded_card_white"
+                    android:background="@drawable/bg_rounded_card"
                     android:orientation="vertical"
                     android:padding="16dp">
 
@@ -191,26 +143,94 @@
                         android:id="@+id/tv_selected_day_title"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Selected Day Sessions"
                         android:textColor="@color/focus_text_dark"
                         android:textSize="18sp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        tools:text="Tuesday, November 10" />
 
-                    <TextView
-                        android:id="@+id/tv_selected_day_header_summary"
+                    <!-- Selected Day 3 Metrics Row -->
+                    <LinearLayout
+                        android:id="@+id/layoutSelectedDayMetrics"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textColor="@color/focus_text_dark"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        tools:text="Total: 2 session(s) · 1h 20m focus · 3 phone check(s)" />
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvSelectedDayTotalFocus"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/focus_text_dark"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                tools:text="1h 28m" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Total focus"
+                                android:textColor="@color/focus_text_dark"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvSelectedDaySessionCount"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/focus_text_dark"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                tools:text="2" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Sessions"
+                                android:textColor="@color/focus_text_dark"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvSelectedDayPhoneChecks"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/focus_text_dark"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                tools:text="5" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Phone checks"
+                                android:textColor="@color/focus_text_dark"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rv_calendar_sessions"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="12dp"
                         android:nestedScrollingEnabled="false"
                         tools:listitem="@layout/item_calendar_session" />
 
@@ -223,6 +243,15 @@
                         android:textColor="@color/focus_text_secondary"
                         android:textSize="13sp"
                         android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tvSelectedDayFooterNotice"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="Tap a session to see its saved record."
+                        android:textColor="#8C9985"
+                        android:textSize="11sp" />
                 </LinearLayout>
 
             </LinearLayout>

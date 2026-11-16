@@ -70,7 +70,8 @@ class ReportCalculator(
         periodEnd: Long,
         sessions: List<ReportSession>,
         phoneEvents: List<ReportPhoneEvent> = emptyList(),
-        appUsages: List<ReportAppUsage> = emptyList()
+        appUsages: List<ReportAppUsage> = emptyList(),
+        previousSummary: FocusSummary? = null
     ): PeriodReportData {
         // 1. Filter sessions that started within period range and are not currently RUNNING
         val finishedSessions = sessions.filter { session ->
@@ -117,7 +118,8 @@ class ReportCalculator(
             topAppUsages = topAppUsages,
             earlyStopReasons = earlyStopReasons,
             sessions = finishedSessions,
-            phoneEvents = periodPhoneEvents
+            phoneEvents = periodPhoneEvents,
+            previousSummary = previousSummary
         )
     }
 

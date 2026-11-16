@@ -95,13 +95,48 @@ class RoomReportRepository(
             )
         }
 
+        val previousSummary = if (periodType == PeriodType.WEEK || periodType == PeriodType.MONTH) {
+            val (prevStart, prevEnd) = if (periodType == PeriodType.WEEK) {
+                (periodStart - 7 * 86_400_000L) to periodStart
+            } else {
+                val zdt = java.time.ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(periodStart), zoneId)
+                val prevMonthZdt = zdt.minusMonths(1).withDayOfMonth(1)
+                prevMonthZdt.toInstant().toEpochMilli() to periodStart
+            }
+            val prevSessions = dao.getSessionsByPeriod(prevStart, prevEnd)
+            val prevReportSessions = prevSessions.map { entity ->
+                ReportSession(
+                    id = entity.id,
+                    subject = entity.subject,
+                    plan = entity.plan,
+                    goalMinutes = entity.goalMinutes,
+                    startAt = entity.startAt,
+                    endAt = entity.endAt,
+                    status = entity.status,
+                    stopReason = entity.stopReason,
+                    stopMemo = entity.stopMemo,
+                    reflection = entity.reflection,
+                    photoUri = entity.photoUri,
+                    focusMs = entity.focusMs,
+                    phoneUseMs = entity.phoneUseMs,
+                    checkCount = entity.checkCount,
+                    unlockOnlyCount = entity.unlockOnlyCount,
+                    longestFocusMs = entity.longestFocusMs
+                )
+            }
+            ReportCalculator(zoneId).calculateSummary(prevReportSessions)
+        } else {
+            null
+        }
+
         return ReportCalculator(zoneId).calculateReport(
             periodType = periodType,
             periodStart = periodStart,
             periodEnd = periodEnd,
             sessions = reportSessions,
             phoneEvents = reportEvents,
-            appUsages = reportUsages
+            appUsages = reportUsages,
+            previousSummary = previousSummary
         )
     }
 

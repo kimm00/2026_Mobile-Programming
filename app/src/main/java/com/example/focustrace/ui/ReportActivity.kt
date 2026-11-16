@@ -25,7 +25,9 @@ import com.google.android.material.tabs.TabLayoutMediator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -84,6 +86,7 @@ class ReportActivity : AppCompatActivity() {
                     binding.layoutOverviewContainer.visibility = View.GONE
                     binding.layoutCalendarContainer.visibility = View.VISIBLE
                     loadCalendarDaySessions(selectedCalendarDate)
+                    loadMonthSessionDots(YearMonth.from(selectedCalendarDate))
                 } else {
                     // Overview view
                     binding.layoutOverviewContainer.visibility = View.VISIBLE
@@ -114,22 +117,37 @@ class ReportActivity : AppCompatActivity() {
     }
 
     private fun setupCalendarView() {
-        calendarAdapter = CalendarSessionAdapter(zoneId) { session, anchorView ->
-            showDeletePopupMenu(session, anchorView)
-            true
-        }
+        calendarAdapter = CalendarSessionAdapter(
+            zoneId = zoneId,
+            onSessionClick = { session ->
+                val intent = Intent(this, FinishActivity::class.java).apply {
+                    putExtra(FinishActivity.EXTRA_SESSION_ID, session.id)
+                }
+                startActivity(intent)
+            },
+            onSessionLongClick = { session, anchorView ->
+                showDeletePopupMenu(session, anchorView)
+                true
+            }
+        )
 
         binding.rvCalendarSessions.layoutManager = LinearLayoutManager(this)
         binding.rvCalendarSessions.adapter = calendarAdapter
 
-        binding.calendarView.setOnDateChangeListener { _, year, month, dayOfMonth ->
-            selectedCalendarDate = LocalDate.of(year, month + 1, dayOfMonth)
+        binding.customCalendarView.onDateSelectedListener = { date ->
+            selectedCalendarDate = date
             loadCalendarDaySessions(selectedCalendarDate)
         }
 
-        // Default load today's sessions in calendar mode
+        binding.customCalendarView.onMonthChangedListener = { yearMonth ->
+            loadMonthSessionDots(yearMonth)
+        }
+
         selectedCalendarDate = LocalDate.now(zoneId)
+        binding.customCalendarView.setSelectedDate(selectedCalendarDate)
+
         loadCalendarDaySessions(selectedCalendarDate)
+        loadMonthSessionDots(YearMonth.from(selectedCalendarDate))
     }
 
     private fun showDeletePopupMenu(session: ReportSession, anchorView: View) {
@@ -167,6 +185,7 @@ class ReportActivity : AppCompatActivity() {
                 if (success) {
                     Toast.makeText(this@ReportActivity, "Session deleted", Toast.LENGTH_SHORT).show()
                     loadCalendarDaySessions(selectedCalendarDate)
+                    loadMonthSessionDots(YearMonth.from(selectedCalendarDate))
                     refreshOverviewReports()
                 } else {
                     Toast.makeText(this@ReportActivity, "Failed to delete session", Toast.LENGTH_SHORT).show()
@@ -184,9 +203,26 @@ class ReportActivity : AppCompatActivity() {
         binding.viewPagerReport.setCurrentItem(currentItem, false)
     }
 
+    private fun loadMonthSessionDots(yearMonth: YearMonth) {
+        lifecycleScope.launch {
+            val startOfMonth = yearMonth.atDay(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+            val endOfMonth = yearMonth.atEndOfMonth().plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+
+            val report = withContext(Dispatchers.IO) {
+                repository.getReport(PeriodType.MONTH, startOfMonth, endOfMonth, zoneId)
+            }
+
+            val sessionDates = report.sessions.map {
+                Instant.ofEpochMilli(it.startAt).atZone(zoneId).toLocalDate()
+            }.toSet()
+
+            binding.customCalendarView.setDatesWithSessions(sessionDates)
+        }
+    }
+
     private fun loadCalendarDaySessions(date: LocalDate) {
         lifecycleScope.launch {
-            val dateStr = date.format(DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.ENGLISH))
+            val dateStr = date.format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.ENGLISH))
             binding.tvSelectedDayTitle.text = dateStr
 
             val startOfDay = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
@@ -197,18 +233,16 @@ class ReportActivity : AppCompatActivity() {
             }
 
             if (report.sessions.isEmpty()) {
-                binding.tvSelectedDayHeaderSummary.text = "No sessions recorded."
+                binding.layoutSelectedDayMetrics.visibility = View.GONE
                 binding.tvCalendarEmptyState.visibility = View.VISIBLE
                 binding.rvCalendarSessions.visibility = View.GONE
                 calendarAdapter.submitList(emptyList())
             } else {
-                val totalFocusStr = TimeFormatter.formatDuration(report.summary.totalFocusMs)
-                val checkCount = report.summary.totalCheckCount
-                val sessionCount = report.sessions.size
+                binding.tvSelectedDayTotalFocus.text = TimeFormatter.formatDuration(report.summary.totalFocusMs)
+                binding.tvSelectedDaySessionCount.text = report.sessions.size.toString()
+                binding.tvSelectedDayPhoneChecks.text = report.summary.totalCheckCount.toString()
 
-                binding.tvSelectedDayHeaderSummary.text =
-                    "Total: $sessionCount session(s) · $totalFocusStr focus · $checkCount phone check(s)"
-
+                binding.layoutSelectedDayMetrics.visibility = View.VISIBLE
                 binding.tvCalendarEmptyState.visibility = View.GONE
                 binding.rvCalendarSessions.visibility = View.VISIBLE
                 calendarAdapter.submitList(report.sessions)
