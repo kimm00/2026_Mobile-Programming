@@ -456,6 +456,8 @@ class FinishActivity : AppCompatActivity() {
 
         var rankCounter = 1
 
+        val maxDistractionMs = allDistractions.maxOfOrNull { it.totalMs }?.coerceAtLeast(1L) ?: 1L
+
         // Render all distraction apps
         allDistractions.forEach { summary ->
             addAppUsageRow(
@@ -463,7 +465,8 @@ class FinishActivity : AppCompatActivity() {
                 rank = rankCounter++,
                 packageName = summary.packageName,
                 appName = summary.appLabel,
-                durationMs = summary.seconds * 1000L,
+                durationMs = summary.totalMs,
+                maxDistractionMs = maxDistractionMs,
                 isAllowed = false,
                 dp = ::dp,
                 textColor = textColor
@@ -477,7 +480,8 @@ class FinishActivity : AppCompatActivity() {
                 rank = rankCounter++,
                 packageName = summary.packageName,
                 appName = summary.appLabel,
-                durationMs = summary.seconds * 1000L,
+                durationMs = summary.totalMs,
+                maxDistractionMs = maxDistractionMs,
                 isAllowed = true,
                 dp = ::dp,
                 textColor = textColor
@@ -491,6 +495,7 @@ class FinishActivity : AppCompatActivity() {
         packageName: String,
         appName: String,
         durationMs: Long,
+        maxDistractionMs: Long,
         isAllowed: Boolean,
         dp: (Int) -> Int,
         textColor: Int
@@ -580,21 +585,50 @@ class FinishActivity : AppCompatActivity() {
         textColumn.addView(nameView)
         textColumn.addView(durationView)
 
-        val barIndicator = View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(50), dp(8)).apply {
-                marginStart = dp(8)
-                marginEnd = dp(8)
-            }
-            background = GradientDrawable().apply {
-                cornerRadius = dp(4).toFloat()
-                setColor(if (isAllowed) Color.parseColor("#D8E5D0") else Color.parseColor("#FFAE8C"))
-            }
-        }
-
         row.addView(rankView)
         row.addView(iconView)
         row.addView(textColumn)
-        row.addView(barIndicator)
+
+        if (!isAllowed) {
+            val trackWidthDp = 72
+            val fillRatio = (durationMs.toDouble() / maxDistractionMs).coerceIn(0.1, 1.0)
+            val fillWidthDp = (trackWidthDp * fillRatio).toInt().coerceAtLeast(6)
+
+            val barTrack = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(dp(trackWidthDp), dp(8)).apply {
+                    marginStart = dp(8)
+                    marginEnd = dp(8)
+                }
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(4).toFloat()
+                    setColor(Color.parseColor("#C2E3A4"))
+                }
+                clipToOutline = true
+
+                val barFill = View(this@FinishActivity).apply {
+                    layoutParams = LinearLayout.LayoutParams(dp(fillWidthDp), LinearLayout.LayoutParams.MATCH_PARENT)
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(4).toFloat()
+                        setColor(Color.parseColor("#FFAE8C"))
+                    }
+                }
+                addView(barFill)
+            }
+            row.addView(barTrack)
+        } else {
+            val barIndicator = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(50), dp(8)).apply {
+                    marginStart = dp(8)
+                    marginEnd = dp(8)
+                }
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(4).toFloat()
+                    setColor(Color.parseColor("#D8E5D0"))
+                }
+            }
+            row.addView(barIndicator)
+        }
 
         if (isAllowed) {
             val allowedBadge = android.widget.TextView(this).apply {
