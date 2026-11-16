@@ -90,6 +90,10 @@ class OnboardingActivity : AppCompatActivity() {
         binding.tvStatusBattery.text = if (batteryGranted) "Allowed ✓" else "Not allowed"
         binding.btnOpenBatterySettings.isEnabled = !batteryGranted
 
+        val canContinue = usageGranted && notificationGranted
+        binding.btnContinueOnboarding.isEnabled = canContinue
+        binding.btnContinueOnboarding.alpha = if (canContinue) 1.0f else 0.4f
+
         val count = listOf(usageGranted, notificationGranted, batteryGranted).count { it }
         binding.tvProgressCount.text = "$count of 3 completed"
 
