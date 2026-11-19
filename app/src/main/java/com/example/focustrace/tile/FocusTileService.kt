@@ -4,16 +4,42 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import com.example.focustrace.sessionRepository
 import com.example.focustrace.ui.PrepareActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 
 class FocusTileService : TileService() {
 
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var listeningJob: Job? = null
+
     override fun onStartListening() {
         super.onStartListening()
-        qsTile?.apply {
-            state = Tile.STATE_INACTIVE
-            updateTile()
+        listeningJob?.cancel()
+        listeningJob = serviceScope.launch {
+            val runningSession = applicationContext.sessionRepository.observeRunningSession().firstOrNull()
+            qsTile?.apply {
+                state = if (runningSession != null) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+                updateTile()
+            }
         }
+    }
+
+    override fun onStopListening() {
+        super.onStopListening()
+        listeningJob?.cancel()
+        listeningJob = null
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
     }
 
     override fun onClick() {
