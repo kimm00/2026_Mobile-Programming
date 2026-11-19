@@ -57,6 +57,7 @@ class FocusService : Service() {
     private var homePackageName: String? = null
     private var isReceiverRegistered = false
     private var isStopping = false
+    private var timerAutoCompleteJob: Job? = null
 
     private var allowedApps: Set<String> = emptySet()
 
@@ -474,6 +475,13 @@ class FocusService : Service() {
         cancelAutoCompleteAlarm()
         if (targetGoalTimeMs <= 0L) return
 
+        val delayMs = (targetGoalTimeMs - System.currentTimeMillis()).coerceAtLeast(0L)
+        timerAutoCompleteJob = serviceScope.launch {
+            delay(delayMs)
+            Log.d(TAG, "Timer coroutine auto-completed at goal time ($targetGoalTimeMs)")
+            performAutoComplete(sessionId, targetGoalTimeMs, currentSubject)
+        }
+
         val alarmManager = getSystemService(ALARM_SERVICE) as? AlarmManager ?: return
         val intent = Intent(this, FocusService::class.java).apply {
             action = ACTION_AUTO_COMPLETE
@@ -513,6 +521,9 @@ class FocusService : Service() {
     }
 
     private fun cancelAutoCompleteAlarm() {
+        timerAutoCompleteJob?.cancel()
+        timerAutoCompleteJob = null
+
         val alarmManager = getSystemService(ALARM_SERVICE) as? AlarmManager ?: return
         val intent = Intent(this, FocusService::class.java).apply {
             action = ACTION_AUTO_COMPLETE

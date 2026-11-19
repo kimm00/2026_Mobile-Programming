@@ -53,7 +53,13 @@ class RoomSessionRepository(
 
         if (session.status != SessionStatus.RUNNING.name) return
 
-        val actualEndAt = endAt ?: System.currentTimeMillis()
+        val rawEndAt = endAt ?: System.currentTimeMillis()
+        val actualEndAt = if (status == SessionStatus.COMPLETED && session.goalMinutes > 0) {
+            val goalEndTime = session.startAt + (session.goalMinutes * 60_000L)
+            minOf(rawEndAt, goalEndTime)
+        } else {
+            rawEndAt
+        }
         val elapsedMs = (actualEndAt - session.startAt).coerceAtLeast(0L)
 
         dao.closeOpenDeviceStates(sessionId, actualEndAt)

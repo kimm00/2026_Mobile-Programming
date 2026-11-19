@@ -42,6 +42,7 @@ class SessionActivity : AppCompatActivity() {
 
     private var sessionId: Long = -1L
     private var isEnding = false
+    private var hasSentAutoComplete = false
 
     private var autoFinishJob: Job? = null
 
@@ -217,6 +218,15 @@ class SessionActivity : AppCompatActivity() {
                             )
 
                             binding.btnFinish.isVisible = (remainingMs == 0L)
+
+                            if (remainingMs == 0L && !hasSentAutoComplete) {
+                                hasSentAutoComplete = true
+                                val intent = Intent(this@SessionActivity, FocusService::class.java).apply {
+                                    action = FocusService.ACTION_AUTO_COMPLETE
+                                    putExtra(FocusService.EXTRA_SESSION_ID, sessionId)
+                                }
+                                startService(intent)
+                            }
 
                             delay(200L)
                         }
