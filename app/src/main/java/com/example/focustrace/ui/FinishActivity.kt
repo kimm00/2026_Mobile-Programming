@@ -23,11 +23,19 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.widget.LinearLayout
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.os.Handler
+import android.os.Looper
+import com.example.focustrace.mission.StretchMotionDetector
+import com.example.focustrace.data.db.entity.StretchMissionEntity
 import com.example.focustrace.data.db.entity.AppUsageEntity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.util.Locale
 
-class FinishActivity : AppCompatActivity() {
+class FinishActivity : AppCompatActivity(), SensorEventListener {
 
     companion object {
         const val EXTRA_SESSION_ID = "extra_session_id"
@@ -38,6 +46,20 @@ class FinishActivity : AppCompatActivity() {
 
     private var targetSessionId: Long = -1L
     private var currentSession: SessionEntity? = null
+
+    private lateinit var sensorManager: SensorManager
+    private var linearAccelerationSensor: Sensor? = null
+    private var stretchDetector: StretchMotionDetector? = null
+    private var isStretchInitialized = false
+    private val stretchHandler = Handler(Looper.getMainLooper())
+    private val stretchTimerRunnable = object : Runnable {
+        override fun run() {
+            stretchDetector?.checkTimer()
+            if (stretchDetector?.missionState == StretchMotionDetector.MissionState.IN_PROGRESS) {
+                stretchHandler.postDelayed(this, 100L)
+            }
+        }
+    }
 
     private val cameraFlowLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -62,6 +84,9 @@ class FinishActivity : AppCompatActivity() {
         }
 
         targetSessionId = intent.getLongExtra(EXTRA_SESSION_ID, -1L)
+
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        linearAccelerationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
 
         setupListeners()
         loadSessionData()
@@ -208,6 +233,14 @@ class FinishActivity : AppCompatActivity() {
             "You completed your ${formatShortTime(session.focusMs)} session as planned for ${session.subject}."
         } else {
             "Session stopped early (${session.stopReason ?: "User choice"}). Try shorter intervals next time."
+        }
+
+        // F-12 Stretching Mission (Only if COMPLETED)
+        if (session.status == "COMPLETED") {
+            binding.cardStretchMission.visibility = View.VISIBLE
+            setupStretchMission(session.id)
+        } else {
+            binding.cardStretchMission.visibility = View.GONE
         }
     }
 
@@ -676,5 +709,142 @@ class FinishActivity : AppCompatActivity() {
         }
 
         sheetDialog.show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        stretchDetector?.resume()
+        if (stretchDetector?.missionState == StretchMotionDetector.MissionState.IN_PROGRESS) {
+            linearAccelerationSensor?.let { sensor ->
+                sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME)
+            }
+            stretchHandler.removeCallbacks(stretchTimerRunnable)
+            stretchHandler.post(stretchTimerRunnable)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stretchDetector?.pause()
+        sensorManager.unregisterListener(this)
+        stretchHandler.removeCallbacks(stretchTimerRunnable)
+    }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor.type != Sensor.TYPE_LINEAR_ACCELERATION) return
+        stretchDetector?.processSensorEvent(event.values[0], event.values[1], event.values[2])
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+    private fun setupStretchMission(sessionId: Long) {
+        if (isStretchInitialized) return
+        isStretchInitialized = true
+
+        lifecycleScope.launch {
+            val existing = withContext(Dispatchers.IO) {
+                repository.getStretchMission(sessionId)
+            }
+            if (existing != null) {
+                binding.tvStretchCount.text = "${existing.doneReps} / ${existing.targetReps}"
+                binding.progressStretch.progress = existing.doneReps
+                binding.tvStretchStatus.text = "Result: ${existing.result}"
+                binding.btnStartStretch.isEnabled = false
+                binding.tvSkipStretch.isEnabled = false
+                return@launch
+            }
+        }
+
+        stretchDetector = StretchMotionDetector(
+            targetCount = 10,
+            totalTimeMs = 60000L
+        ) { state, count, remainingMs, magnitude ->
+            updateStretchUi(state, count, remainingMs, magnitude)
+        }
+
+        binding.btnStartStretch.setOnClickListener {
+            if (linearAccelerationSensor == null) {
+                Toast.makeText(this, "Linear acceleration sensor not available on this device", Toast.LENGTH_SHORT).show()
+            }
+            stretchDetector?.startMission()
+            stretchHandler.removeCallbacks(stretchTimerRunnable)
+            stretchHandler.post(stretchTimerRunnable)
+            linearAccelerationSensor?.let { sensor ->
+                sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME)
+            }
+        }
+
+        binding.tvSkipStretch.setOnClickListener {
+            stretchDetector?.skipMission()
+            stretchHandler.removeCallbacks(stretchTimerRunnable)
+            sensorManager.unregisterListener(this)
+            saveStretchResult(sessionId, "SKIPPED", stretchDetector?.count ?: 0)
+            updateStretchUi(StretchMotionDetector.MissionState.SKIPPED, stretchDetector?.count ?: 0, 0L, 0f)
+            binding.btnStartStretch.isEnabled = false
+            binding.tvSkipStretch.isEnabled = false
+        }
+    }
+
+    private fun updateStretchUi(
+        state: StretchMotionDetector.MissionState,
+        count: Int,
+        remainingMs: Long,
+        magnitude: Float
+    ) {
+        binding.tvStretchCount.text = "$count / 10"
+        binding.progressStretch.progress = count
+
+        val statusText = when (state) {
+            StretchMotionDetector.MissionState.NOT_STARTED -> "⏱ Ready to start · counted with the accelerometer"
+            StretchMotionDetector.MissionState.IN_PROGRESS -> {
+                val secs = remainingMs / 1000L
+                val mins = secs / 60
+                val remSecs = secs % 60
+                String.format("⏱ %d:%02d left · counted with the accelerometer", mins, remSecs)
+            }
+            StretchMotionDetector.MissionState.SUCCESS -> {
+                stretchHandler.removeCallbacks(stretchTimerRunnable)
+                sensorManager.unregisterListener(this)
+                saveStretchResult(targetSessionId, "SUCCESS", count)
+                binding.btnStartStretch.isEnabled = false
+                binding.tvSkipStretch.isEnabled = false
+                "🎉 MISSION SUCCESS!"
+            }
+            StretchMotionDetector.MissionState.FAILED -> {
+                stretchHandler.removeCallbacks(stretchTimerRunnable)
+                sensorManager.unregisterListener(this)
+                saveStretchResult(targetSessionId, "FAILED", count)
+                binding.btnStartStretch.isEnabled = false
+                binding.tvSkipStretch.isEnabled = false
+                "❌ MISSION FAILED (Time Limit)"
+            }
+            StretchMotionDetector.MissionState.SKIPPED -> {
+                binding.btnStartStretch.isEnabled = false
+                binding.tvSkipStretch.isEnabled = false
+                "⏭ MISSION SKIPPED"
+            }
+        }
+        binding.tvStretchStatus.text = statusText
+    }
+
+    private fun saveStretchResult(sessionId: Long, result: String, doneReps: Int) {
+        if (sessionId <= 0L) return
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                val existing = repository.getStretchMission(sessionId)
+                if (existing == null) {
+                    repository.saveStretchMission(
+                        StretchMissionEntity(
+                            sessionId = sessionId,
+                            startedAt = System.currentTimeMillis() - 60_000L,
+                            endedAt = System.currentTimeMillis(),
+                            targetReps = 10,
+                            doneReps = doneReps,
+                            result = result
+                        )
+                    )
+                }
+            }
+        }
     }
 }
