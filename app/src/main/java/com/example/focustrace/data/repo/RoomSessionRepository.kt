@@ -6,6 +6,7 @@ import com.example.focustrace.data.db.entity.AllowedAppEntity
 import com.example.focustrace.data.db.entity.AppUsageEntity
 import com.example.focustrace.data.db.entity.DeviceStateEntity
 import com.example.focustrace.data.db.entity.SessionEntity
+import com.example.focustrace.data.db.entity.StretchMissionEntity
 import kotlinx.coroutines.flow.Flow
 
 class RoomSessionRepository(
@@ -288,5 +289,13 @@ class RoomSessionRepository(
 
     override suspend fun deleteSession(sessionId: Long): Boolean {
         return dao.deleteSession(sessionId) > 0
+    }
+
+    override suspend fun saveStretchMission(mission: StretchMissionEntity) {
+        dao.insertStretchMission(mission)
+    }
+
+    override suspend fun getStretchMission(sessionId: Long): StretchMissionEntity? {
+        return dao.getStretchMission(sessionId)
     }
 }

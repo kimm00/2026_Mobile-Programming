@@ -3,6 +3,7 @@ package com.example.focustrace.data.repo
 import com.example.focustrace.data.db.dao.SessionDetail
 import com.example.focustrace.data.db.entity.AllowedAppEntity
 import com.example.focustrace.data.db.entity.SessionEntity
+import com.example.focustrace.data.db.entity.StretchMissionEntity
 import kotlinx.coroutines.flow.Flow
 
 enum class SessionStatus {
@@ -75,4 +76,10 @@ interface SessionRepository {
 
     /** Called by ReportActivity to delete a focus session record and associated events. */
     suspend fun deleteSession(sessionId: Long): Boolean
+
+    /** Called by FinishActivity to save stretch mission result. */
+    suspend fun saveStretchMission(mission: StretchMissionEntity)
+
+    /** Called by FinishActivity or Report to retrieve stretch mission result. */
+    suspend fun getStretchMission(sessionId: Long): StretchMissionEntity?
 }

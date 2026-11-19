@@ -11,6 +11,7 @@ import com.example.focustrace.data.db.entity.DeviceStateEntity
 import com.example.focustrace.data.db.entity.PhoneEventEntity
 import com.example.focustrace.data.db.entity.RefocusAlertEntity
 import com.example.focustrace.data.db.entity.SessionEntity
+import com.example.focustrace.data.db.entity.StretchMissionEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -191,4 +192,10 @@ abstract class SessionDao {
 
     @Query("UPDATE refocus_alerts SET leftAt = :leftAt WHERE id = :alertId AND leftAt IS NULL")
     abstract suspend fun updateRefocusAlertLeftAt(alertId: Long, leftAt: Long)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertStretchMission(mission: StretchMissionEntity): Long
+
+    @Query("SELECT * FROM stretch_missions WHERE sessionId = :sessionId LIMIT 1")
+    abstract suspend fun getStretchMission(sessionId: Long): StretchMissionEntity?
 }
