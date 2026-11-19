@@ -10,6 +10,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.focustrace.MainActivity
+import com.example.focustrace.BuildConfig
 import com.example.focustrace.data.db.entity.SessionEntity
 import com.example.focustrace.data.repo.SessionRepository
 import com.example.focustrace.databinding.ActivityFinishBinding
@@ -39,6 +40,8 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
 
     companion object {
         const val EXTRA_SESSION_ID = "extra_session_id"
+        // Debug test flag to force sensor unavailable in emulator/debug builds (set to false after testing)
+        private const val FORCE_SENSOR_UNAVAILABLE_FOR_TEST = false
     }
 
     private lateinit var binding: ActivityFinishBinding
@@ -86,7 +89,8 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
         targetSessionId = intent.getLongExtra(EXTRA_SESSION_ID, -1L)
 
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
-        linearAccelerationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+        val rawSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+        linearAccelerationSensor = if (com.example.focustrace.BuildConfig.DEBUG && FORCE_SENSOR_UNAVAILABLE_FOR_TEST) null else rawSensor
 
         setupListeners()
         loadSessionData()
@@ -753,6 +757,12 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
                 binding.tvSkipStretch.isEnabled = false
                 return@launch
             }
+
+            if (linearAccelerationSensor == null) {
+                binding.tvStretchStatus.text = "This device does not support the stretching mission."
+                binding.btnStartStretch.isEnabled = false
+                binding.tvSkipStretch.isEnabled = true
+            }
         }
 
         stretchDetector = StretchMotionDetector(
@@ -764,7 +774,8 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
 
         binding.btnStartStretch.setOnClickListener {
             if (linearAccelerationSensor == null) {
-                Toast.makeText(this, "Linear acceleration sensor not available on this device", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "This device does not support the stretching mission.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
             stretchDetector?.startMission()
             stretchHandler.removeCallbacks(stretchTimerRunnable)
@@ -778,10 +789,27 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
             stretchDetector?.skipMission()
             stretchHandler.removeCallbacks(stretchTimerRunnable)
             sensorManager.unregisterListener(this)
-            saveStretchResult(sessionId, "SKIPPED", stretchDetector?.count ?: 0)
-            updateStretchUi(StretchMotionDetector.MissionState.SKIPPED, stretchDetector?.count ?: 0, 0L, 0f)
-            binding.btnStartStretch.isEnabled = false
-            binding.tvSkipStretch.isEnabled = false
+
+            lifecycleScope.launch {
+                withContext(Dispatchers.IO) {
+                    val existing = repository.getStretchMission(sessionId)
+                    if (existing == null) {
+                        repository.saveStretchMission(
+                            StretchMissionEntity(
+                                sessionId = sessionId,
+                                startedAt = System.currentTimeMillis() - 60_000L,
+                                endedAt = System.currentTimeMillis(),
+                                targetReps = 10,
+                                doneReps = stretchDetector?.count ?: 0,
+                                result = "SKIPPED"
+                            )
+                        )
+                    }
+                }
+                updateStretchUi(StretchMotionDetector.MissionState.SKIPPED, stretchDetector?.count ?: 0, 0L, 0f)
+                binding.btnStartStretch.isEnabled = false
+                binding.tvSkipStretch.isEnabled = false
+            }
         }
     }
 
