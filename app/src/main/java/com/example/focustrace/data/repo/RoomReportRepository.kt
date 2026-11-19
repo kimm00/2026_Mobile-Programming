@@ -2,12 +2,17 @@ package com.example.focustrace.data.repo
 
 import androidx.room.withTransaction
 import com.example.focustrace.data.db.AppDatabase
+import com.example.focustrace.data.db.entity.PhoneEventEntity
+import com.example.focustrace.data.db.entity.SessionEntity
 import com.example.focustrace.data.model.PeriodReportData
 import com.example.focustrace.data.model.PeriodType
 import com.example.focustrace.data.model.ReportAppUsage
 import com.example.focustrace.data.model.ReportPhoneEvent
 import com.example.focustrace.data.model.ReportSession
 import com.example.focustrace.domain.ReportCalculator
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import java.time.ZoneId
 
 class RoomReportRepository(
@@ -138,6 +143,123 @@ class RoomReportRepository(
             appUsages = reportUsages,
             previousSummary = previousSummary
         )
+    }
+
+    override fun observeReport(
+        periodType: PeriodType,
+        periodStart: Long,
+        periodEnd: Long,
+        zoneId: ZoneId
+    ): Flow<PeriodReportData> {
+        val dao = database.sessionDao()
+        val sessionsFlow = dao.observeSessionsByPeriod(periodStart, periodEnd)
+
+        val prevBounds = if (periodType == PeriodType.WEEK || periodType == PeriodType.MONTH) {
+            if (periodType == PeriodType.WEEK) {
+                (periodStart - 7 * 86_400_000L) to periodStart
+            } else {
+                val zdt = java.time.ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(periodStart), zoneId)
+                val prevMonthZdt = zdt.minusMonths(1).withDayOfMonth(1)
+                prevMonthZdt.toInstant().toEpochMilli() to periodStart
+            }
+        } else {
+            null
+        }
+
+        val prevSessionsFlow = if (prevBounds != null) {
+            dao.observeSessionsByPeriod(prevBounds.first, prevBounds.second)
+        } else {
+            flowOf(emptyList())
+        }
+
+        return combine(sessionsFlow, prevSessionsFlow) { sessions, prevSessions ->
+            val ids = sessions.map { it.id }
+            val events = if (ids.isEmpty()) emptyList() else dao.getEventsBySessionIds(ids)
+            val usages = if (ids.isEmpty()) emptyList() else dao.getUsagesBySessionIds(ids)
+
+            val reportSessions = sessions.map { entity ->
+                ReportSession(
+                    id = entity.id,
+                    subject = entity.subject,
+                    plan = entity.plan,
+                    goalMinutes = entity.goalMinutes,
+                    startAt = entity.startAt,
+                    endAt = entity.endAt,
+                    status = entity.status,
+                    stopReason = entity.stopReason,
+                    stopMemo = entity.stopMemo,
+                    reflection = entity.reflection,
+                    photoUri = entity.photoUri,
+                    focusMs = entity.focusMs,
+                    phoneUseMs = entity.phoneUseMs,
+                    checkCount = entity.checkCount,
+                    unlockOnlyCount = entity.unlockOnlyCount,
+                    longestFocusMs = entity.longestFocusMs
+                )
+            }
+
+            val reportEvents = events.map { entity ->
+                ReportPhoneEvent(
+                    id = entity.id,
+                    sessionId = entity.sessionId,
+                    startAt = entity.startAt,
+                    endAt = entity.endAt,
+                    kind = entity.kind
+                )
+            }
+
+            val reportUsages = usages.map { entity ->
+                ReportAppUsage(
+                    id = entity.id,
+                    eventId = entity.eventId,
+                    sessionId = entity.sessionId,
+                    packageName = entity.packageName,
+                    appLabel = entity.appLabel,
+                    startAt = entity.startAt,
+                    durationMs = entity.durationMs,
+                    isAllowed = entity.isAllowed,
+                    isAuto = entity.isAuto,
+                    isCounted = entity.isCounted
+                )
+            }
+
+            val prevReportSessions = prevSessions.map { entity ->
+                ReportSession(
+                    id = entity.id,
+                    subject = entity.subject,
+                    plan = entity.plan,
+                    goalMinutes = entity.goalMinutes,
+                    startAt = entity.startAt,
+                    endAt = entity.endAt,
+                    status = entity.status,
+                    stopReason = entity.stopReason,
+                    stopMemo = entity.stopMemo,
+                    reflection = entity.reflection,
+                    photoUri = entity.photoUri,
+                    focusMs = entity.focusMs,
+                    phoneUseMs = entity.phoneUseMs,
+                    checkCount = entity.checkCount,
+                    unlockOnlyCount = entity.unlockOnlyCount,
+                    longestFocusMs = entity.longestFocusMs
+                )
+            }
+
+            val previousSummary = if (prevBounds != null) {
+                ReportCalculator(zoneId).calculateSummary(prevReportSessions)
+            } else {
+                null
+            }
+
+            ReportCalculator(zoneId).calculateReport(
+                periodType = periodType,
+                periodStart = periodStart,
+                periodEnd = periodEnd,
+                sessions = reportSessions,
+                phoneEvents = reportEvents,
+                appUsages = reportUsages,
+                previousSummary = previousSummary
+            )
+        }
     }
 
     override suspend fun deleteSession(sessionId: Long): Boolean {

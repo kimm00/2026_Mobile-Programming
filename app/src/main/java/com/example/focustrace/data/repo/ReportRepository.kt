@@ -4,6 +4,8 @@ import com.example.focustrace.data.model.PeriodReportData
 import com.example.focustrace.data.model.PeriodType
 import com.example.focustrace.domain.ReportCalculator
 import com.example.focustrace.sample.SampleData
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import java.time.ZoneId
 
 interface ReportRepository {
@@ -13,6 +15,13 @@ interface ReportRepository {
         periodEnd: Long,
         zoneId: ZoneId
     ): PeriodReportData
+
+    fun observeReport(
+        periodType: PeriodType,
+        periodStart: Long,
+        periodEnd: Long,
+        zoneId: ZoneId
+    ): Flow<PeriodReportData>
 
     suspend fun deleteSession(sessionId: Long): Boolean
 }
@@ -34,6 +43,24 @@ class SampleReportRepository(
             sessions = SampleData.SESSIONS,
             phoneEvents = SampleData.PHONE_EVENTS,
             appUsages = SampleData.APP_USAGES
+        )
+    }
+
+    override fun observeReport(
+        periodType: PeriodType,
+        periodStart: Long,
+        periodEnd: Long,
+        zoneId: ZoneId
+    ): Flow<PeriodReportData> {
+        return flowOf(
+            ReportCalculator(zoneId).calculateReport(
+                periodType = periodType,
+                periodStart = periodStart,
+                periodEnd = periodEnd,
+                sessions = SampleData.SESSIONS,
+                phoneEvents = SampleData.PHONE_EVENTS,
+                appUsages = SampleData.APP_USAGES
+            )
         )
     }
 

@@ -5,22 +5,17 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import com.example.focustrace.data.db.AppDatabase
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.focustrace.data.model.FocusSummary
 import com.example.focustrace.data.model.PeriodReportData
 import com.example.focustrace.data.model.PeriodType
-import com.example.focustrace.data.repo.ReportRepository
-import com.example.focustrace.data.repo.RoomReportRepository
 import com.example.focustrace.databinding.FragmentReportWeekBinding
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
 
@@ -33,11 +28,8 @@ class ReportWeekFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val zoneId: ZoneId = ZoneId.systemDefault()
-    private var selectedDate: LocalDate = LocalDate.now(zoneId)
-    private var reportJob: Job? = null
-
-    private val repository: ReportRepository by lazy {
-        RoomReportRepository(AppDatabase.get(requireContext().applicationContext))
+    private val viewModel: ReportViewModel by lazy {
+        ViewModelProvider(requireActivity())[ReportViewModel::class.java]
     }
 
     override fun onCreateView(
@@ -52,49 +44,30 @@ class ReportWeekFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupNavigation()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        updateReport()
+        observeViewModel()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        reportJob?.cancel()
         _binding = null
     }
 
     private fun setupNavigation() {
         binding.btnPrevPeriod.setOnClickListener {
-            selectedDate = selectedDate.minusWeeks(1)
-            updateReport()
+            viewModel.navigatePeriod(PeriodType.WEEK, false)
         }
 
         binding.btnNextPeriod.setOnClickListener {
-            selectedDate = selectedDate.plusWeeks(1)
-            updateReport()
+            viewModel.navigatePeriod(PeriodType.WEEK, true)
         }
     }
 
-    private fun updateReport() {
-        reportJob?.cancel()
-
-        val anchorDate = selectedDate
-        binding.tvReportSubtitle.text = ReportPeriodUtils.formatPeriodSubtitle(PeriodType.WEEK, anchorDate, zoneId)
-
-        reportJob = lifecycleScope.launch {
-            val (periodStart, periodEnd) = ReportPeriodUtils.calculatePeriodBounds(PeriodType.WEEK, anchorDate, zoneId)
-            try {
-                val reportData = withContext(Dispatchers.IO) {
-                    repository.getReport(PeriodType.WEEK, periodStart, periodEnd, zoneId)
-                }
-                _binding?.let { renderReport(reportData) }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                if (isAdded) {
-                    Toast.makeText(requireContext(), "Failed to load report", Toast.LENGTH_SHORT).show()
+    private fun observeViewModel() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collectLatest { state ->
+                    binding.tvReportSubtitle.text = ReportPeriodUtils.formatPeriodSubtitle(PeriodType.WEEK, state.weekAnchorDate, zoneId)
+                    state.weekReport?.let { renderReport(it) }
                 }
             }
         }

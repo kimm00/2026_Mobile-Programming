@@ -146,6 +146,19 @@ abstract class SessionDao {
     ): List<SessionEntity>
 
     @Query("""
+    SELECT * FROM sessions
+        WHERE startAt >= :startTime
+          AND startAt < :endTime
+          AND status != 'RUNNING'
+          AND isSample = 0
+        ORDER BY startAt DESC
+    """)
+    abstract fun observeSessionsByPeriod(
+        startTime: Long,
+        endTime: Long
+    ): Flow<List<SessionEntity>>
+
+    @Query("""
     SELECT * FROM phone_events
         WHERE sessionId IN (:sessionIds)
         ORDER BY startAt ASC
@@ -155,6 +168,19 @@ abstract class SessionDao {
     ): List<PhoneEventEntity>
 
     @Query("""
+    SELECT * FROM phone_events
+        WHERE sessionId IN (
+            SELECT id FROM sessions
+            WHERE startAt >= :startTime AND startAt < :endTime AND status != 'RUNNING' AND isSample = 0
+        )
+        ORDER BY startAt ASC
+    """)
+    abstract fun observeEventsByPeriod(
+        startTime: Long,
+        endTime: Long
+    ): Flow<List<PhoneEventEntity>>
+
+    @Query("""
     SELECT * FROM app_usages
         WHERE sessionId IN (:sessionIds)
         ORDER BY startAt ASC
@@ -162,6 +188,19 @@ abstract class SessionDao {
     abstract suspend fun getUsagesBySessionIds(
         sessionIds: List<Long>
     ): List<AppUsageEntity>
+
+    @Query("""
+    SELECT * FROM app_usages
+        WHERE sessionId IN (
+            SELECT id FROM sessions
+            WHERE startAt >= :startTime AND startAt < :endTime AND status != 'RUNNING' AND isSample = 0
+        )
+        ORDER BY startAt ASC
+    """)
+    abstract fun observeUsagesByPeriod(
+        startTime: Long,
+        endTime: Long
+    ): Flow<List<AppUsageEntity>>
 
     @Query("SELECT * FROM sessions WHERE id = :sessionId LIMIT 1")
     abstract suspend fun getSessionById(sessionId: Long): SessionEntity?
