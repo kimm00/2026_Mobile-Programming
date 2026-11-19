@@ -15,6 +15,8 @@ import com.example.focustrace.databinding.ActivityLoginBinding
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
+    private var isFormVisible: Boolean = false
+    private var isSignUpMode: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,8 +31,20 @@ class LoginActivity : AppCompatActivity() {
             insets
         }
 
+        if (savedInstanceState != null) {
+            isFormVisible = savedInstanceState.getBoolean(KEY_IS_FORM_VISIBLE, false)
+            isSignUpMode = savedInstanceState.getBoolean(KEY_IS_SIGN_UP_MODE, false)
+        }
+
         setupDebugButton()
         setupAuthListeners()
+        applyAuthMode()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_IS_FORM_VISIBLE, isFormVisible)
+        outState.putBoolean(KEY_IS_SIGN_UP_MODE, isSignUpMode)
     }
 
     private fun setupDebugButton() {
@@ -57,9 +71,10 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.btnLoginEmail.setOnClickListener {
-            // Toggle email form or show notice
-            if (binding.layoutEmailForm.visibility == View.GONE) {
-                binding.layoutEmailForm.visibility = View.VISIBLE
+            if (!isFormVisible) {
+                isFormVisible = true
+                isSignUpMode = false
+                applyAuthMode()
             } else {
                 Toast.makeText(
                     this,
@@ -69,8 +84,42 @@ class LoginActivity : AppCompatActivity() {
             }
         }
 
+        binding.tvToggleAuthMode.setOnClickListener {
+            isSignUpMode = !isSignUpMode
+            applyAuthMode()
+        }
+
         binding.btnGoOnboarding.setOnClickListener {
             startActivity(Intent(this, OnboardingActivity::class.java))
         }
+    }
+
+    private fun applyAuthMode() {
+        if (isFormVisible) {
+            binding.layoutEmailForm.visibility = View.VISIBLE
+            binding.tvToggleAuthMode.visibility = View.VISIBLE
+            if (isSignUpMode) {
+                binding.tvFormTitle.text = "Create your account"
+                binding.tilConfirmPassword.visibility = View.VISIBLE
+                binding.tvPasswordHint.visibility = View.VISIBLE
+                binding.tvLoginEmailLabel.text = "Create account"
+                binding.tvToggleAuthMode.text = "Already have an account? Sign in"
+            } else {
+                binding.tvFormTitle.text = "Welcome back"
+                binding.tilConfirmPassword.visibility = View.GONE
+                binding.tvPasswordHint.visibility = View.GONE
+                binding.tvLoginEmailLabel.text = "Sign in"
+                binding.tvToggleAuthMode.text = "New here? Create an account"
+            }
+        } else {
+            binding.layoutEmailForm.visibility = View.GONE
+            binding.tvToggleAuthMode.visibility = View.GONE
+            binding.tvLoginEmailLabel.text = "Sign in with email"
+        }
+    }
+
+    companion object {
+        private const val KEY_IS_FORM_VISIBLE = "key_is_form_visible"
+        private const val KEY_IS_SIGN_UP_MODE = "key_is_sign_up_mode"
     }
 }
