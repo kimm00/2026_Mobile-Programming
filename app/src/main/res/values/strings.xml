@@ -11,4 +11,7 @@
     <string name="early_stop_reason_other">Other</string>
     <string name="early_stop_note_hint">Add a note (Please avoid sharing sensitive personal information)</string>
     <string name="early_stop_save_button">Save &amp; Continue</string>
+
+    <!-- F-14 Quick Settings Tile -->
+    <string name="tile_label">Start focus</string>
 </resources>
