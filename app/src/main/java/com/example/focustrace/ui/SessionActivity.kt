@@ -9,7 +9,10 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.focustrace.data.repo.SessionRepository
 import com.example.focustrace.data.repo.SessionStatus
 import com.example.focustrace.data.repo.StopReason
@@ -17,13 +20,13 @@ import com.example.focustrace.databinding.ActivitySessionBinding
 import com.example.focustrace.detection.FocusService
 import com.example.focustrace.sessionRepository
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
-import kotlin.coroutines.resume
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import java.util.Locale
+import kotlin.coroutines.resume
 
 class SessionActivity : AppCompatActivity() {
 
@@ -100,6 +103,8 @@ class SessionActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
+        binding.btnFinish.isVisible = false
+
         binding.btnEarlyStop.setOnClickListener {
             earlyStopLauncher.launch(
                 EarlyStopActivity.createIntent(this).apply {
@@ -163,6 +168,20 @@ class SessionActivity : AppCompatActivity() {
 
                 if (session.status != SessionStatus.RUNNING.name) {
                     autoFinishJob?.cancel()
+                    autoFinishJob = null
+
+                    if (!isEnding) {
+                        isEnding = true
+                        if (session.status == SessionStatus.COMPLETED.name ||
+                            session.status == SessionStatus.EARLY_STOP.name
+                        ) {
+                            val intent = Intent(this@SessionActivity, FinishActivity::class.java).apply {
+                                putExtra(FinishActivity.EXTRA_SESSION_ID, sessionId)
+                            }
+                            startActivity(intent)
+                        }
+                        finish()
+                    }
                     return@collect
                 }
 
@@ -174,36 +193,33 @@ class SessionActivity : AppCompatActivity() {
                 val deadline = session.startAt + totalMs
 
                 autoFinishJob = lifecycleScope.launch {
-                    var lastDisplayedSeconds = -1L
+                    repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        var lastDisplayedSeconds = -1L
 
-                    while (!isEnding) {
-                        // Calculate from the original deadline to avoid cumulative drift.
-                        val remainingMs = (deadline - System.currentTimeMillis())
-                            .coerceIn(0L, totalMs)
+                        while (!isEnding) {
+                            val remainingMs = (deadline - System.currentTimeMillis())
+                                .coerceIn(0L, totalMs)
 
-                        // Round up so 00:00 is shown only when the session has ended.
-                        val remainingSeconds = (remainingMs + 999L) / 1000L
+                            val remainingSeconds = (remainingMs + 999L) / 1000L
 
-                        if (remainingSeconds != lastDisplayedSeconds) {
-                            binding.tvRemainingTime.text = String.format(
-                                Locale.US,
-                                "%02d:%02d",
-                                remainingSeconds / 60L,
-                                remainingSeconds % 60L
+                            if (remainingSeconds != lastDisplayedSeconds) {
+                                binding.tvRemainingTime.text = String.format(
+                                    Locale.US,
+                                    "%02d:%02d",
+                                    remainingSeconds / 60L,
+                                    remainingSeconds % 60L
+                                )
+                                lastDisplayedSeconds = remainingSeconds
+                            }
+
+                            binding.countdownRing.setRemainingFraction(
+                                remainingMs.toFloat() / totalMs
                             )
-                            lastDisplayedSeconds = remainingSeconds
+
+                            binding.btnFinish.isVisible = (remainingMs == 0L)
+
+                            delay(200L)
                         }
-
-                        binding.countdownRing.setRemainingFraction(
-                            remainingMs.toFloat() / totalMs
-                        )
-
-                        if (remainingMs == 0L) {
-                            endSession(status = SessionStatus.COMPLETED)
-                            break
-                        }
-
-                        delay(50L)
                     }
                 }
             }

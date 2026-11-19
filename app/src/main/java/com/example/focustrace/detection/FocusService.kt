@@ -1,6 +1,8 @@
 package com.example.focustrace.detection
 
 import android.Manifest
+import android.app.AlarmManager
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -15,6 +17,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.ResultReceiver
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -22,6 +25,9 @@ import androidx.core.content.ContextCompat
 import com.example.focustrace.FocusTraceApp
 import com.example.focustrace.R
 import com.example.focustrace.data.db.entity.RefocusAlertEntity
+import com.example.focustrace.data.repo.SessionStatus
+import com.example.focustrace.sessionRepository
+import com.example.focustrace.ui.FinishActivity
 import com.example.focustrace.ui.SessionActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +50,8 @@ class FocusService : Service() {
 
     private var sessionId = -1L
     private var goalMinutes = 0
+    private var currentSubject = ""
+    private var goalTimeMs = 0L
     private var lastUnlockTimeMs = 0L
     private var isSessionStartEpisode = true
     private var homePackageName: String? = null
@@ -67,6 +75,12 @@ class FocusService : Service() {
             if (isStopping) return
 
             val now = System.currentTimeMillis()
+
+            if (goalTimeMs > 0L && now >= goalTimeMs) {
+                Log.d(TAG, "Goal time reached on screen event (now=$now, goalTime=$goalTimeMs), triggering auto-complete")
+                performAutoComplete(sessionId, goalTimeMs, currentSubject)
+                return
+            }
 
             when (intent?.action) {
                 Intent.ACTION_USER_PRESENT -> {
@@ -261,12 +275,13 @@ class FocusService : Service() {
                         TAG,
                         "Stop requested while already stopping (sessionId=$sessionId)"
                     )
-                    receiver?.send(RESULT_ERROR, Bundle())
+                    receiver?.send(RESULT_OK, Bundle())
                     return START_STICKY
                 }
 
                 Log.d(TAG, "Stopping session id=$sessionId")
                 isStopping = true
+                cancelAutoCompleteAlarm()
                 unregisterScreenReceiver()
 
                 val finalUnlockTime = lastUnlockTimeMs
@@ -307,6 +322,59 @@ class FocusService : Service() {
                     }
                 }
             }
+
+            ACTION_AUTO_COMPLETE -> {
+                startForeground(
+                    NOTIFICATION_ID,
+                    buildNotification(),
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+
+                val requestedId = intent.getLongExtra(EXTRA_SESSION_ID, -1L)
+
+                serviceScope.launch {
+                    val dao = (applicationContext as FocusTraceApp).database.sessionDao()
+                    val runningSession = dao.getRunningSession()
+
+                    val activeId = if (sessionId > 0L) sessionId else runningSession?.id ?: -1L
+                    if (activeId <= 0L || runningSession == null) {
+                        Log.d(TAG, "AUTO_COMPLETE: No running session in DB or memory")
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                        return@launch
+                    }
+
+                    if (requestedId > 0L && requestedId != activeId) {
+                        Log.w(
+                            TAG,
+                            "AUTO_COMPLETE: Session ID mismatch requested=$requestedId active=$activeId"
+                        )
+                        return@launch
+                    }
+
+                    val startAt = runningSession.startAt
+                    val gMins = runningSession.goalMinutes
+                    val goalTime = startAt + (gMins * 60_000L)
+                    val now = System.currentTimeMillis()
+
+                    if (now >= goalTime) {
+                        Log.d(TAG, "AUTO_COMPLETE: Goal time reached for session id=$activeId")
+                        performAutoComplete(activeId, goalTime, runningSession.subject)
+                    } else {
+                        Log.d(
+                            TAG,
+                            "AUTO_COMPLETE: Arrived early for session id=$activeId (now=$now < goalTime=$goalTime); ignoring alarm"
+                        )
+                        if (sessionId <= 0L) {
+                            startOrSwitchSession(
+                                newSessionId = runningSession.id,
+                                newGoalMinutes = runningSession.goalMinutes,
+                                isResume = true
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         return START_STICKY
@@ -321,9 +389,20 @@ class FocusService : Service() {
         goalMinutes = newGoalMinutes
         isStopping = false
         val now = System.currentTimeMillis()
-        lastUnlockTimeMs = now
         isSessionStartEpisode = true
 
+        val powerManager = getSystemService(POWER_SERVICE) as? PowerManager
+        val keyguardManager = getSystemService(KEYGUARD_SERVICE) as? KeyguardManager
+        val isUnlockedAndInteractive = (powerManager?.isInteractive == true) &&
+                (keyguardManager?.isKeyguardLocked == false)
+
+        if (isUnlockedAndInteractive) {
+            lastUnlockTimeMs = now
+        } else {
+            lastUnlockTimeMs = 0L
+        }
+
+        cancelAutoCompleteAlarm()
         stopRefocusMonitoring(now)
 
         val dao = (applicationContext as FocusTraceApp).database.sessionDao()
@@ -336,6 +415,21 @@ class FocusService : Service() {
         )
 
         serviceScope.launch {
+            val runningSession = dao.getRunningSession() ?: dao.getSessionById(sessionId)
+            if (runningSession != null) {
+                currentSubject = runningSession.subject
+                val startAt = runningSession.startAt
+                val gMins = runningSession.goalMinutes
+                if (gMins > 0) {
+                    goalTimeMs = startAt + (gMins * 60_000L)
+                } else {
+                    goalTimeMs = 0L
+                }
+            } else {
+                currentSubject = ""
+                goalTimeMs = 0L
+            }
+
             allowedApps = dao.getAllowedPackages().toSet()
 
             episodeAnalyzer = EpisodeAnalyzer(
@@ -354,12 +448,147 @@ class FocusService : Service() {
             registerScreenReceiver()
             updateNotification()
 
-            startRefocusMonitoring(now)
+            if (isUnlockedAndInteractive) {
+                startRefocusMonitoring(now)
+            }
+
+            if (goalTimeMs > 0L) {
+                if (System.currentTimeMillis() >= goalTimeMs) {
+                    Log.d(TAG, "Session id=$sessionId goal time already reached on start/resume")
+                    performAutoComplete(sessionId, goalTimeMs, currentSubject)
+                    return@launch
+                } else {
+                    scheduleAutoCompleteAlarm(goalTimeMs)
+                }
+            }
 
             if (isResume) {
                 Log.d(TAG, "Resumed session id=$sessionId, goalMinutes=$goalMinutes")
             } else {
                 Log.d(TAG, "Started session id=$sessionId, goalMinutes=$goalMinutes")
+            }
+        }
+    }
+
+    private fun scheduleAutoCompleteAlarm(targetGoalTimeMs: Long) {
+        cancelAutoCompleteAlarm()
+        if (targetGoalTimeMs <= 0L) return
+
+        val alarmManager = getSystemService(ALARM_SERVICE) as? AlarmManager ?: return
+        val intent = Intent(this, FocusService::class.java).apply {
+            action = ACTION_AUTO_COMPLETE
+            putExtra(EXTRA_SESSION_ID, sessionId)
+        }
+
+        val pendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PendingIntent.getForegroundService(
+                this,
+                ALARM_REQUEST_CODE,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        } else {
+            PendingIntent.getService(
+                this,
+                ALARM_REQUEST_CODE,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                targetGoalTimeMs,
+                pendingIntent
+            )
+        } else {
+            alarmManager.set(
+                AlarmManager.RTC_WAKEUP,
+                targetGoalTimeMs,
+                pendingIntent
+            )
+        }
+        Log.d(TAG, "Scheduled auto-complete alarm for session $sessionId at $targetGoalTimeMs")
+    }
+
+    private fun cancelAutoCompleteAlarm() {
+        val alarmManager = getSystemService(ALARM_SERVICE) as? AlarmManager ?: return
+        val intent = Intent(this, FocusService::class.java).apply {
+            action = ACTION_AUTO_COMPLETE
+        }
+
+        val pendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PendingIntent.getForegroundService(
+                this,
+                ALARM_REQUEST_CODE,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        } else {
+            PendingIntent.getService(
+                this,
+                ALARM_REQUEST_CODE,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+
+        alarmManager.cancel(pendingIntent)
+        pendingIntent.cancel()
+    }
+
+    private fun performAutoComplete(
+        targetSessionId: Long,
+        targetGoalTimeMs: Long,
+        subject: String
+    ) {
+        if (isStopping) return
+        isStopping = true
+
+        Log.d(TAG, "Auto-completing session id=$targetSessionId at goalTime=$targetGoalTimeMs")
+
+        cancelAutoCompleteAlarm()
+        unregisterScreenReceiver()
+
+        val finalUnlockTime = lastUnlockTimeMs
+        val finalStartFlag = isSessionStartEpisode
+
+        stopRefocusMonitoring(targetGoalTimeMs)
+        lastUnlockTimeMs = 0L
+
+        serviceScope.launch {
+            try {
+                val jobs = synchronized(pendingAnalyses) {
+                    pendingAnalyses.toList()
+                }
+
+                jobs.forEach { it.join() }
+
+                analysisMutex.withLock {
+                    if (finalUnlockTime != 0L && finalUnlockTime < targetGoalTimeMs) {
+                        performEpisodeAnalysis(
+                            unlockTimeMs = finalUnlockTime,
+                            screenOffTimeMs = targetGoalTimeMs,
+                            isStartEpisode = finalStartFlag,
+                            isEndEpisode = true
+                        )
+                    }
+                }
+
+                applicationContext.sessionRepository.endSession(
+                    sessionId = targetSessionId,
+                    status = SessionStatus.COMPLETED,
+                    endAt = targetGoalTimeMs
+                )
+
+                showSessionCompleteNotification(targetSessionId, subject)
+                Log.d(TAG, "Session id=$targetSessionId auto-completed successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to auto-complete session id=$targetSessionId", e)
+            } finally {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
             }
         }
     }
@@ -479,6 +708,48 @@ class FocusService : Service() {
             ?.notify(REFOCUS_NOTIFICATION_ID, notification)
     }
 
+    private fun showSessionCompleteNotification(
+        completedSessionId: Long,
+        subject: String
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permission = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+            if (permission != PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Notification permission not granted, skipping completion notification")
+                return
+            }
+        }
+
+        val intent = Intent(this, FinishActivity::class.java).apply {
+            putExtra(FinishActivity.EXTRA_SESSION_ID, completedSessionId)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            2,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val title = if (subject.isNotBlank()) "$subject - Complete" else "Session complete"
+
+        val notification = NotificationCompat.Builder(this, COMPLETE_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText("Focus session finished!")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+
+        getSystemService(NotificationManager::class.java)
+            ?.notify(COMPLETE_NOTIFICATION_ID, notification)
+    }
+
     private fun updateNotification() {
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager?.notify(NOTIFICATION_ID, buildNotification())
@@ -550,6 +821,7 @@ class FocusService : Service() {
 
     override fun onDestroy() {
         unregisterScreenReceiver()
+        cancelAutoCompleteAlarm()
         stopRefocusMonitoring(System.currentTimeMillis())
         serviceJob.cancel()
         super.onDestroy()
@@ -576,8 +848,17 @@ class FocusService : Service() {
             description = "Refocus alerts for non-allowed app usage"
         }
 
+        val completeChannel = NotificationChannel(
+            COMPLETE_CHANNEL_ID,
+            "FocusTrace Complete",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Notifications for finished focus sessions"
+        }
+
         notificationManager.createNotificationChannel(sessionChannel)
         notificationManager.createNotificationChannel(refocusChannel)
+        notificationManager.createNotificationChannel(completeChannel)
     }
 
     private fun buildNotification(): Notification {
@@ -593,14 +874,23 @@ class FocusService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("FocusTrace Session Active")
+        val title = if (currentSubject.isNotBlank()) currentSubject else "FocusTrace Session Active"
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(title)
             .setContentText("Monitoring phone usage")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+
+        if (goalTimeMs > 0L) {
+            builder.setWhen(goalTimeMs)
+                .setUsesChronometer(true)
+                .setChronometerCountDown(true)
+        }
+
+        return builder.build()
     }
 
     companion object {
@@ -610,6 +900,9 @@ class FocusService : Service() {
         const val ACTION_STOP_SESSION =
             "com.example.focustrace.action.STOP_SESSION"
 
+        const val ACTION_AUTO_COMPLETE =
+            "com.example.focustrace.action.AUTO_COMPLETE"
+
         const val EXTRA_SESSION_ID = "extra_session_id"
         const val EXTRA_GOAL_MINUTES = "extra_goal_minutes"
         const val EXTRA_RESULT_RECEIVER = "result_receiver"
@@ -617,8 +910,11 @@ class FocusService : Service() {
         const val RESULT_OK = 1
         const val RESULT_ERROR = 0
 
+        private const val ALARM_REQUEST_CODE = 9001
         private const val CHANNEL_ID = "focus_trace_service_channel"
+        private const val COMPLETE_CHANNEL_ID = "focus_trace_complete_channel"
         private const val NOTIFICATION_ID = 1001
+        private const val COMPLETE_NOTIFICATION_ID = 1002
         private const val REFOCUS_CHANNEL_ID = "refocus_alert_channel"
         private const val REFOCUS_NOTIFICATION_ID = 2002
         private const val REFOCUS_CHECK_INTERVAL_MS = 15_000L

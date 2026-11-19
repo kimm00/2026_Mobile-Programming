@@ -10,7 +10,7 @@ activityKtx = "1.13.0"
 constraintlayout = "2.2.2"
 ksp = "2.2.10-2.0.2"
 room = "2.8.5"
-firebaseBom = "35.1.0"
+firebaseBom = "34.11.0"
 googleServices = "4.5.0"
 
 [libraries]
