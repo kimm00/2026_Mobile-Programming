@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "850447154709",
+    "project_id": "focustrace-48ba8",
+    "storage_bucket": "focustrace-48ba8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:850447154709:android:1463a8446c881bf4e6181c",
+        "android_client_info": {
+          "package_name": "com.example.focustrace"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "850447154709-8tgvphg6h622a363jeboft2f9inv8kem.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.focustrace",
+            "certificate_hash": "445c2380e51ac1e5422d3a870a35e71c8b21eb60"
+          }
+        },
+        {
+          "client_id": "850447154709-nchfip7ndpi6b0ec6v3h6dnsia9gn1li.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANQpkUewH63qavORzfUE-7xT9ezB6e2H4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "850447154709-nchfip7ndpi6b0ec6v3h6dnsia9gn1li.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
