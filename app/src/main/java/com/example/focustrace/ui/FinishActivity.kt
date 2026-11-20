@@ -29,6 +29,10 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Handler
 import android.os.Looper
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import com.example.focustrace.mission.StretchMotionDetector
 import com.example.focustrace.data.db.entity.StretchMissionEntity
 import com.example.focustrace.data.db.entity.AppUsageEntity
@@ -48,6 +52,34 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
 
     private var targetSessionId: Long = -1L
     private var currentSession: SessionEntity? = null
+
+    private var lastVibratedCount = 0
+
+    private val vibrator: Vibrator? by lazy {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = getSystemService(VibratorManager::class.java)
+            vibratorManager?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(VIBRATOR_SERVICE) as? Vibrator
+        }
+    }
+
+    private fun vibrateShort() {
+        try {
+            val vib = vibrator ?: return
+            if (!vib.hasVibrator()) return
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vib.vibrate(VibrationEffect.createOneShot(50L, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vib.vibrate(50L)
+            }
+        } catch (_: Exception) {
+            // Ignored if device does not support vibration or haptics are disabled
+        }
+    }
 
     private lateinit var sensorManager: SensorManager
     private var linearAccelerationSensor: Sensor? = null
@@ -749,6 +781,7 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
                 repository.getStretchMission(sessionId)
             }
             if (existing != null) {
+                lastVibratedCount = existing.doneReps
                 binding.tvStretchCount.text = "${existing.doneReps} / ${existing.targetReps}"
                 binding.progressStretch.progress = existing.doneReps
                 binding.tvStretchStatus.text = "Result: ${existing.result}"
@@ -776,6 +809,7 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
                 Toast.makeText(this, "This device does not support the stretching mission.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+            lastVibratedCount = 0
             stretchDetector?.startMission()
             stretchHandler.removeCallbacks(stretchTimerRunnable)
             stretchHandler.post(stretchTimerRunnable)
@@ -785,6 +819,7 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
         }
 
         binding.tvSkipStretch.setOnClickListener {
+            lastVibratedCount = stretchDetector?.count ?: 0
             stretchDetector?.skipMission()
             stretchHandler.removeCallbacks(stretchTimerRunnable)
             sensorManager.unregisterListener(this)
@@ -818,6 +853,13 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
         remainingMs: Long,
         magnitude: Float
     ) {
+        if (count in (lastVibratedCount + 1)..10) {
+            if (state == StretchMotionDetector.MissionState.IN_PROGRESS || state == StretchMotionDetector.MissionState.SUCCESS) {
+                vibrateShort()
+            }
+            lastVibratedCount = count
+        }
+
         binding.tvStretchCount.text = "$count / 10"
         binding.progressStretch.progress = count
 
