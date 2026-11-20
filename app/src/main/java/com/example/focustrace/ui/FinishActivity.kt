@@ -10,7 +10,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.focustrace.MainActivity
-import com.example.focustrace.BuildConfig
 import com.example.focustrace.data.db.entity.SessionEntity
 import com.example.focustrace.data.repo.SessionRepository
 import com.example.focustrace.databinding.ActivityFinishBinding
