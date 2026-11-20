@@ -14,4 +14,10 @@
 
     <!-- F-14 Quick Settings Tile -->
     <string name="tile_label">Start focus</string>
+
+    <!-- Battery Optimization -->
+    <string name="battery_optimization_dialog_title">Battery Optimization</string>
+    <string name="battery_optimization_dialog_message">Keep FocusTrace running while your screen is off</string>
+    <string name="battery_optimization_allow">Allow</string>
+    <string name="battery_optimization_not_now">Not now</string>
 </resources>
