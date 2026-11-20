@@ -3,6 +3,8 @@ package com.example.focustrace
 import android.app.Application
 import android.content.Context
 import com.example.focustrace.data.db.AppDatabase
+import com.example.focustrace.data.repo.AuthRepository
+import com.example.focustrace.data.repo.FirebaseAuthRepository
 import com.example.focustrace.data.repo.ReportRepository
 import com.example.focustrace.data.repo.RoomReportRepository
 import com.example.focustrace.data.repo.RoomSessionRepository
@@ -21,6 +23,10 @@ class FocusTraceApp : Application() {
     val reportRepository: ReportRepository by lazy {
         RoomReportRepository(database)
     }
+
+    val authRepository: AuthRepository by lazy {
+        FirebaseAuthRepository()
+    }
 }
 
 val Context.sessionRepository: SessionRepository
@@ -28,3 +34,6 @@ val Context.sessionRepository: SessionRepository
 
 val Context.reportRepository: ReportRepository
     get() = (applicationContext as FocusTraceApp).reportRepository
+
+val Context.authRepository: AuthRepository
+    get() = (applicationContext as FocusTraceApp).authRepository
