@@ -226,12 +226,20 @@ class MainActivity : AppCompatActivity() {
         val sheetBinding = BottomSheetProfileBinding.inflate(layoutInflater)
         dialog.setContentView(sheetBinding.root)
 
-        // Existing profile info (or guest default)
-        sheetBinding.tvProfileName.text = "Maya"
-        sheetBinding.tvProfileEmail.text = "maya@example.com"
-        sheetBinding.tvProfileAvatar.text = "M"
+        val email = authRepository.currentUserEmail()
+        if (email != null) {
+            val name = email.substringBefore("@")
+            sheetBinding.tvProfileEmail.text = email
+            sheetBinding.tvProfileName.text = name
+            sheetBinding.tvProfileAvatar.text = name.take(1).uppercase()
+        } else {
+            // Existing profile info (or guest default)
+            sheetBinding.tvProfileName.text = "Maya"
+            sheetBinding.tvProfileEmail.text = "maya@example.com"
+            sheetBinding.tvProfileAvatar.text = "M"
+        }
 
-        sheetBinding.tvSignOutLabel.text = "개발용: 로그인 화면 보기"
+        sheetBinding.tvSignOutLabel.text = "Sign out"
 
         sheetBinding.btnProfilePermissions.setOnClickListener {
             dialog.dismiss()
@@ -240,8 +248,9 @@ class MainActivity : AppCompatActivity() {
 
         sheetBinding.btnProfileSignOut.setOnClickListener {
             dialog.dismiss()
+            authRepository.signOut()
             val intent = Intent(this, com.example.focustrace.ui.LoginActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
             startActivity(intent)
             finish()

@@ -20,6 +20,10 @@ class FirebaseAuthRepository(
         return auth.currentUser?.uid
     }
 
+    override fun currentUserEmail(): String? {
+        return auth.currentUser?.email
+    }
+
     override suspend fun signUpWithEmail(email: String, password: String): AuthResult {
         return suspendCancellableCoroutine { continuation ->
             auth.createUserWithEmailAndPassword(email, password)

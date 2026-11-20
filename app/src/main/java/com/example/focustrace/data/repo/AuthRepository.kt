@@ -8,6 +8,7 @@ sealed class AuthResult {
 interface AuthRepository {
     fun isSignedIn(): Boolean
     fun currentUserId(): String?
+    fun currentUserEmail(): String?
     suspend fun signUpWithEmail(email: String, password: String): AuthResult
     suspend fun signInWithEmail(email: String, password: String): AuthResult
     fun signOut()
