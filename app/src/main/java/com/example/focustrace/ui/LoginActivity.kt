@@ -1,18 +1,27 @@
 package com.example.focustrace.ui
 
+import android.Manifest
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Patterns
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.doAfterTextChanged
+import androidx.lifecycle.lifecycleScope
 import com.example.focustrace.MainActivity
+import com.example.focustrace.authRepository
+import com.example.focustrace.data.repo.AuthResult
 import com.example.focustrace.databinding.ActivityLoginBinding
+import com.example.focustrace.detection.UsageStatsHelper
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
 
@@ -80,11 +89,7 @@ class LoginActivity : AppCompatActivity() {
                 applyAuthMode()
             } else {
                 if (validateInputs()) {
-                    Toast.makeText(
-                        this,
-                        "Firebase Auth 이메일 로그인 연동 예정 (담당자 C 구역)",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    performAuth()
                 }
             }
         }
@@ -97,6 +102,52 @@ class LoginActivity : AppCompatActivity() {
         binding.btnGoOnboarding.setOnClickListener {
             startActivity(Intent(this, OnboardingActivity::class.java))
         }
+    }
+
+    private fun performAuth() {
+        val email = binding.etEmail.text?.toString()?.trim().orEmpty()
+        val password = binding.etPassword.text?.toString().orEmpty()
+
+        binding.btnLoginEmail.isEnabled = false
+        binding.tvToggleAuthMode.isEnabled = false
+        binding.tvLoginEmailLabel.text = "Please wait…"
+
+        lifecycleScope.launch {
+            val result = if (isSignUpMode) {
+                authRepository.signUpWithEmail(email, password)
+            } else {
+                authRepository.signInWithEmail(email, password)
+            }
+
+            when (result) {
+                is AuthResult.Success -> {
+                    goToNextScreen()
+                }
+                is AuthResult.Error -> {
+                    Snackbar.make(binding.root, result.message, Snackbar.LENGTH_LONG).show()
+                    binding.btnLoginEmail.isEnabled = true
+                    binding.tvToggleAuthMode.isEnabled = true
+                    applyAuthMode()
+                }
+            }
+        }
+    }
+
+    private fun goToNextScreen() {
+        val usageGranted = UsageStatsHelper.hasUsageStatsPermission(this)
+        val notificationGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val targetActivity = if (usageGranted && notificationGranted) {
+            MainActivity::class.java
+        } else {
+            OnboardingActivity::class.java
+        }
+
+        startActivity(Intent(this, targetActivity))
+        finish()
     }
 
     private fun setupTextWatchers() {
