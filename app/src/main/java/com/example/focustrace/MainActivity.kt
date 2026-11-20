@@ -70,6 +70,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        setupHeaderAndGreeting()
         loadTodaySummary()
         loadWeeklyProgress()
         loadAiRecommendation()
@@ -105,6 +106,12 @@ class MainActivity : AppCompatActivity() {
         val todayDate = LocalDate.now(zoneId)
         val dateFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.ENGLISH)
         binding.tvCurrentDate.text = todayDate.format(dateFormatter)
+
+        val email = authRepository.currentUserEmail()
+        if (email != null) {
+            val initial = email.substringBefore("@").take(1).uppercase()
+            binding.tvHeaderAvatarInitial.text = initial
+        }
     }
 
     private fun setupClickListeners() {
