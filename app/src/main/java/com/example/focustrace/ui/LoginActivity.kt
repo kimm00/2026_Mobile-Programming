@@ -31,6 +31,10 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (authRepository.isSignedIn()) {
+            goToNextScreen()
+            return
+        }
         enableEdgeToEdge()
 
         binding = ActivityLoginBinding.inflate(layoutInflater)
