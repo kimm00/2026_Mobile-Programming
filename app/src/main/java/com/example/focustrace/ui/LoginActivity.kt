@@ -3,12 +3,14 @@ package com.example.focustrace.ui
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
+import android.util.Patterns
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.widget.doAfterTextChanged
 import com.example.focustrace.MainActivity
 import com.example.focustrace.databinding.ActivityLoginBinding
 
@@ -38,6 +40,7 @@ class LoginActivity : AppCompatActivity() {
 
         setupDebugButton()
         setupAuthListeners()
+        setupTextWatchers()
         applyAuthMode()
     }
 
@@ -76,11 +79,13 @@ class LoginActivity : AppCompatActivity() {
                 isSignUpMode = false
                 applyAuthMode()
             } else {
-                Toast.makeText(
-                    this,
-                    "Firebase Auth 이메일 로그인 연동 예정 (담당자 C 구역)",
-                    Toast.LENGTH_LONG
-                ).show()
+                if (validateInputs()) {
+                    Toast.makeText(
+                        this,
+                        "Firebase Auth 이메일 로그인 연동 예정 (담당자 C 구역)",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
 
@@ -94,7 +99,53 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupTextWatchers() {
+        binding.etEmail.doAfterTextChanged { binding.tilEmail.error = null }
+        binding.etPassword.doAfterTextChanged { binding.tilPassword.error = null }
+        binding.etConfirmPassword.doAfterTextChanged { binding.tilConfirmPassword.error = null }
+    }
+
+    private fun validateInputs(): Boolean {
+        clearErrors()
+
+        val email = binding.etEmail.text?.toString()?.trim().orEmpty()
+        val password = binding.etPassword.text?.toString().orEmpty()
+        val confirmPassword = binding.etConfirmPassword.text?.toString().orEmpty()
+
+        var isValid = true
+
+        if (email.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            binding.tilEmail.error = "Enter a valid email."
+            isValid = false
+        }
+
+        if (isSignUpMode) {
+            if (password.length < 8) {
+                binding.tilPassword.error = "Use at least 8 characters."
+                isValid = false
+            }
+            if (confirmPassword != password) {
+                binding.tilConfirmPassword.error = "Passwords don't match."
+                isValid = false
+            }
+        } else {
+            if (password.isEmpty()) {
+                binding.tilPassword.error = "Enter your password."
+                isValid = false
+            }
+        }
+
+        return isValid
+    }
+
+    private fun clearErrors() {
+        binding.tilEmail.error = null
+        binding.tilPassword.error = null
+        binding.tilConfirmPassword.error = null
+    }
+
     private fun applyAuthMode() {
+        clearErrors()
         if (isFormVisible) {
             binding.layoutEmailForm.visibility = View.VISIBLE
             binding.tvToggleAuthMode.visibility = View.VISIBLE
