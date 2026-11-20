@@ -99,6 +99,34 @@
                     android:textColor="@color/focus_text_dark"
                     android:textSize="13sp" />
 
+                <!-- Temporary T9 Earphone Test UI -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_t9_bluetooth_perm"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:text="T9: Perms"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_t9_show_log"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="T9: View Log"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
                 <!-- Mascot Stage -->
                 <LinearLayout
                     android:layout_width="wrap_content"

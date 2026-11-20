@@ -41,7 +41,8 @@ class PermissionHelper(private val activity: ComponentActivity) {
         onResult: (Map<String, Boolean>) -> Unit,
     ) {
         val applicablePermissions = permissions.filter { permission ->
-            !(permission == Manifest.permission.POST_NOTIFICATIONS && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
+            !(permission == Manifest.permission.POST_NOTIFICATIONS && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) &&
+                    !(permission == Manifest.permission.BLUETOOTH_CONNECT && Build.VERSION.SDK_INT < Build.VERSION_CODES.S)
         }
 
         val missingPermissions = applicablePermissions.filter { permission ->
@@ -90,6 +91,8 @@ class PermissionHelper(private val activity: ComponentActivity) {
             if (!isGranted) {
                 if (permission == Manifest.permission.POST_NOTIFICATIONS && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
                     false
+                } else if (permission == Manifest.permission.BLUETOOTH_CONNECT && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                    false
                 } else {
                     !ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
                 }
@@ -109,6 +112,9 @@ class PermissionHelper(private val activity: ComponentActivity) {
 
     private fun isPermissionGranted(permission: String): Boolean {
         if (permission == Manifest.permission.POST_NOTIFICATIONS && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return true
+        }
+        if (permission == Manifest.permission.BLUETOOTH_CONNECT && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             return true
         }
         return ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
@@ -200,6 +206,8 @@ class PermissionHelper(private val activity: ComponentActivity) {
                 activity.getString(R.string.permission_notification_rationale)
             Manifest.permission.CAMERA ->
                 activity.getString(R.string.permission_camera_rationale)
+            Manifest.permission.BLUETOOTH_CONNECT ->
+                activity.getString(R.string.permission_bluetooth_rationale)
             else -> null
         }
     }

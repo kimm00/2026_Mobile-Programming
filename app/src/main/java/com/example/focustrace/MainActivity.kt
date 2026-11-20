@@ -1,6 +1,8 @@
 package com.example.focustrace
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -14,19 +16,23 @@ import com.example.focustrace.data.model.PeriodType
 import com.example.focustrace.data.repo.ReportRepository
 import com.example.focustrace.databinding.ActivityMainBinding
 import com.example.focustrace.databinding.BottomSheetProfileBinding
+import com.example.focustrace.detection.EarphoneTestReceiver
 import com.example.focustrace.detection.FocusService
 import com.example.focustrace.detection.UsageStatsHelper
 import com.example.focustrace.ui.AiInsightTestActivity
+import com.example.focustrace.ui.PermissionHelper
 import com.example.focustrace.ui.PrepareActivity
 import com.example.focustrace.ui.ReportActivity
 import com.example.focustrace.ui.SessionActivity
 import com.example.focustrace.ui.UsagePermissionActivity
 import com.example.focustrace.ui.report.FocusBarChartBinder
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -37,6 +43,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val zoneId: ZoneId = ZoneId.systemDefault()
+    private val permissionHelper = PermissionHelper(this)
 
     private val reportRepo: ReportRepository by lazy {
         reportRepository
@@ -145,6 +152,43 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnNotifications.setOnClickListener {
             Toast.makeText(this, "Notifications feature coming soon", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.btnT9BluetoothPerm.setOnClickListener {
+            val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                listOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                listOf(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            permissionHelper.request(perms) { results ->
+                val btGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    results[Manifest.permission.BLUETOOTH_CONNECT] == true
+                } else true
+                val notifGranted = results[Manifest.permission.POST_NOTIFICATIONS] == true
+                Toast.makeText(this, "T9 Perms - BT: $btGranted, Notif: $notifGranted", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        binding.btnT9ShowLog.setOnClickListener {
+            val logFile = File(filesDir, EarphoneTestReceiver.LOG_FILE_NAME)
+            if (logFile.exists() && logFile.length() > 0) {
+                val content = logFile.readText()
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("T9 Earphone Broadcast Log")
+                    .setMessage(content)
+                    .setPositiveButton("OK", null)
+                    .setNegativeButton("Clear Log") { _, _ ->
+                        logFile.delete()
+                        Toast.makeText(this, "Log cleared", Toast.LENGTH_SHORT).show()
+                    }
+                    .show()
+            } else {
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("T9 Earphone Broadcast Log")
+                    .setMessage("Log file is empty or does not exist yet.")
+                    .setPositiveButton("OK", null)
+                    .show()
+            }
         }
     }
 

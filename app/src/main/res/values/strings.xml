@@ -26,6 +26,7 @@
     <string name="permission_rationale_default">Permissions are required for features to function properly.</string>
     <string name="permission_notification_rationale">Notification: Required for focus session status and refocus alerts.</string>
     <string name="permission_camera_rationale">Camera: Required to take completion photos.</string>
+    <string name="permission_bluetooth_rationale">Bluetooth: Required to detect earphone connect/disconnect.</string>
     <string name="permission_continue">Continue</string>
     <string name="permission_denied_title">Permission Required</string>
     <string name="permission_denied_message">Permissions have been denied. Please enable them in app settings.</string>
