@@ -14,12 +14,15 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.example.focustrace.R
 import com.example.focustrace.data.db.entity.AllowedAppEntity
 import com.example.focustrace.data.repo.SessionRepository
 import com.example.focustrace.databinding.ActivityPrepareBinding
 import com.example.focustrace.databinding.DialogAddSubjectBinding
+import com.example.focustrace.detection.BatteryOptimizationHelper
 import com.example.focustrace.detection.FocusService
 import com.example.focustrace.sessionRepository
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -47,6 +50,20 @@ class PrepareActivity : AppCompatActivity() {
     private var selectedSubjectPosition = 0
     private var savedSubjectName: String? = null
 
+    private val batteryOptimizationLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        val subject = pendingSubject
+        val plan = pendingPlan
+        val goalMinutes = pendingGoalMinutes
+        if (subject != null && goalMinutes != null) {
+            pendingSubject = null
+            pendingPlan = null
+            pendingGoalMinutes = null
+            performStartSession(subject, plan, goalMinutes)
+        }
+    }
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
@@ -57,7 +74,7 @@ class PrepareActivity : AppCompatActivity() {
             pendingSubject = null
             pendingPlan = null
             pendingGoalMinutes = null
-            performStartSession(subject, plan, goalMinutes)
+            checkBatteryOptimizationAndStart(subject, plan, goalMinutes)
         }
     }
 
@@ -486,8 +503,44 @@ class PrepareActivity : AppCompatActivity() {
                 pendingGoalMinutes = goalMinutes
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             } else {
-                performStartSession(subjectText, planText, goalMinutes)
+                checkBatteryOptimizationAndStart(subjectText, planText, goalMinutes)
             }
+        }
+    }
+
+    private fun checkBatteryOptimizationAndStart(subjectText: String, planText: String?, goalMinutes: Int) {
+        if (BatteryOptimizationHelper.isIgnoringBatteryOptimizations(this) ||
+            BatteryOptimizationHelper.hasUserChosenNotNow(this)
+        ) {
+            performStartSession(subjectText, planText, goalMinutes)
+        } else {
+            pendingSubject = subjectText
+            pendingPlan = planText
+            pendingGoalMinutes = goalMinutes
+
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.battery_optimization_dialog_title)
+                .setMessage(R.string.battery_optimization_dialog_message)
+                .setPositiveButton(R.string.battery_optimization_allow) { _, _ ->
+                    batteryOptimizationLauncher.launch(
+                        BatteryOptimizationHelper.createRequestIntent(this)
+                    )
+                }
+                .setNegativeButton(R.string.battery_optimization_not_now) { _, _ ->
+                    BatteryOptimizationHelper.setNotNow(this)
+                    pendingSubject = null
+                    pendingPlan = null
+                    pendingGoalMinutes = null
+                    performStartSession(subjectText, planText, goalMinutes)
+                }
+                .setOnCancelListener {
+                    BatteryOptimizationHelper.setNotNow(this)
+                    pendingSubject = null
+                    pendingPlan = null
+                    pendingGoalMinutes = null
+                    performStartSession(subjectText, planText, goalMinutes)
+                }
+                .show()
         }
     }
 
