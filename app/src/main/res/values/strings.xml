@@ -20,4 +20,15 @@
     <string name="battery_optimization_dialog_message">Keep FocusTrace running while your screen is off</string>
     <string name="battery_optimization_allow">Allow</string>
     <string name="battery_optimization_not_now">Not now</string>
+
+    <!-- Permission Helper -->
+    <string name="permission_rationale_title">Permission Required</string>
+    <string name="permission_rationale_default">Permissions are required for features to function properly.</string>
+    <string name="permission_notification_rationale">Notification: Required for focus session status and refocus alerts.</string>
+    <string name="permission_camera_rationale">Camera: Required to take completion photos.</string>
+    <string name="permission_continue">Continue</string>
+    <string name="permission_denied_title">Permission Required</string>
+    <string name="permission_denied_message">Permissions have been denied. Please enable them in app settings.</string>
+    <string name="permission_open_settings">Open settings</string>
+    <string name="permission_cancel">Cancel</string>
 </resources>
