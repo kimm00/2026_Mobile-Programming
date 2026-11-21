@@ -64,9 +64,9 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
             val vib = vibrator ?: return
             if (!vib.hasVibrator()) return
 
-            val durationMs = 80L
-            val effect = VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE)
-            val attrs = VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH)
+            val durationMs = 120L
+            val effect = VibrationEffect.createOneShot(durationMs, 255)
+            val attrs = VibrationAttributes.createForUsage(VibrationAttributes.USAGE_MEDIA)
             vib.vibrate(effect, attrs)
         } catch (_: Exception) {
             // Ignored if device does not support vibration or haptics are disabled
