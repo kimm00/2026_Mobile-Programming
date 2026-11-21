@@ -72,6 +72,7 @@
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ui.FinishActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:exported="false" />
         <activity
             android:name=".ui.ReportActivity"
