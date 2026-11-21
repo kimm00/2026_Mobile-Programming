@@ -29,10 +29,9 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Handler
 import android.os.Looper
-import android.os.Build
+import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
-import android.os.VibratorManager
 import com.example.focustrace.mission.StretchMotionDetector
 import com.example.focustrace.data.db.entity.StretchMissionEntity
 import com.example.focustrace.data.db.entity.AppUsageEntity
@@ -56,13 +55,8 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
     private var lastVibratedCount = 0
 
     private val vibrator: Vibrator? by lazy {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vibratorManager = getSystemService(VibratorManager::class.java)
-            vibratorManager?.defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            getSystemService(VIBRATOR_SERVICE) as? Vibrator
-        }
+        @Suppress("DEPRECATION")
+        getSystemService(VIBRATOR_SERVICE) as? Vibrator
     }
 
     private fun vibrateShort() {
@@ -70,12 +64,10 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
             val vib = vibrator ?: return
             if (!vib.hasVibrator()) return
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vib.vibrate(VibrationEffect.createOneShot(50L, VibrationEffect.DEFAULT_AMPLITUDE))
-            } else {
-                @Suppress("DEPRECATION")
-                vib.vibrate(50L)
-            }
+            val durationMs = 80L
+            val effect = VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE)
+            val attrs = VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH)
+            vib.vibrate(effect, attrs)
         } catch (_: Exception) {
             // Ignored if device does not support vibration or haptics are disabled
         }
