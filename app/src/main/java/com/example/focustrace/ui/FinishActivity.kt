@@ -29,6 +29,9 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationAttributes
+import android.os.VibrationEffect
+import android.os.Vibrator
 import com.example.focustrace.mission.StretchMotionDetector
 import com.example.focustrace.data.db.entity.StretchMissionEntity
 import com.example.focustrace.data.db.entity.AppUsageEntity
@@ -48,6 +51,27 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
 
     private var targetSessionId: Long = -1L
     private var currentSession: SessionEntity? = null
+
+    private var lastVibratedCount = 0
+
+    private val vibrator: Vibrator? by lazy {
+        @Suppress("DEPRECATION")
+        getSystemService(VIBRATOR_SERVICE) as? Vibrator
+    }
+
+    private fun vibrateShort() {
+        try {
+            val vib = vibrator ?: return
+            if (!vib.hasVibrator()) return
+
+            val durationMs = 120L
+            val effect = VibrationEffect.createOneShot(durationMs, 255)
+            val attrs = VibrationAttributes.createForUsage(VibrationAttributes.USAGE_MEDIA)
+            vib.vibrate(effect, attrs)
+        } catch (_: Exception) {
+            // Ignored if device does not support vibration or haptics are disabled
+        }
+    }
 
     private lateinit var sensorManager: SensorManager
     private var linearAccelerationSensor: Sensor? = null
@@ -749,9 +773,16 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
                 repository.getStretchMission(sessionId)
             }
             if (existing != null) {
+                lastVibratedCount = existing.doneReps
                 binding.tvStretchCount.text = "${existing.doneReps} / ${existing.targetReps}"
                 binding.progressStretch.progress = existing.doneReps
                 binding.tvStretchStatus.text = "Result: ${existing.result}"
+                binding.btnStartStretch.text = when (existing.result) {
+                    "SUCCESS" -> "Mission Completed"
+                    "SKIPPED" -> "Mission Skipped"
+                    "FAILED" -> "Mission Failed"
+                    else -> "Mission Ended"
+                }
                 binding.btnStartStretch.isEnabled = false
                 binding.tvSkipStretch.isEnabled = false
                 return@launch
@@ -776,6 +807,7 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
                 Toast.makeText(this, "This device does not support the stretching mission.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+            lastVibratedCount = 0
             stretchDetector?.startMission()
             stretchHandler.removeCallbacks(stretchTimerRunnable)
             stretchHandler.post(stretchTimerRunnable)
@@ -785,6 +817,7 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
         }
 
         binding.tvSkipStretch.setOnClickListener {
+            lastVibratedCount = stretchDetector?.count ?: 0
             stretchDetector?.skipMission()
             stretchHandler.removeCallbacks(stretchTimerRunnable)
             sensorManager.unregisterListener(this)
@@ -818,12 +851,25 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
         remainingMs: Long,
         magnitude: Float
     ) {
+        if (count in (lastVibratedCount + 1)..10) {
+            if (state == StretchMotionDetector.MissionState.IN_PROGRESS || state == StretchMotionDetector.MissionState.SUCCESS) {
+                vibrateShort()
+            }
+            lastVibratedCount = count
+        }
+
         binding.tvStretchCount.text = "$count / 10"
         binding.progressStretch.progress = count
 
         val statusText = when (state) {
-            StretchMotionDetector.MissionState.NOT_STARTED -> "⏱ Ready to start · counted with the accelerometer"
+            StretchMotionDetector.MissionState.NOT_STARTED -> {
+                binding.btnStartStretch.text = "Start stretching"
+                binding.btnStartStretch.isEnabled = true
+                "⏱ Ready to start · counted with the accelerometer"
+            }
             StretchMotionDetector.MissionState.IN_PROGRESS -> {
+                binding.btnStartStretch.text = "Stretching in progress..."
+                binding.btnStartStretch.isEnabled = false
                 val secs = remainingMs / 1000L
                 val mins = secs / 60
                 val remSecs = secs % 60
@@ -833,6 +879,7 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
                 stretchHandler.removeCallbacks(stretchTimerRunnable)
                 sensorManager.unregisterListener(this)
                 saveStretchResult(targetSessionId, "SUCCESS", count)
+                binding.btnStartStretch.text = "Mission Completed"
                 binding.btnStartStretch.isEnabled = false
                 binding.tvSkipStretch.isEnabled = false
                 "🎉 MISSION SUCCESS!"
@@ -841,11 +888,13 @@ class FinishActivity : AppCompatActivity(), SensorEventListener {
                 stretchHandler.removeCallbacks(stretchTimerRunnable)
                 sensorManager.unregisterListener(this)
                 saveStretchResult(targetSessionId, "FAILED", count)
+                binding.btnStartStretch.text = "Mission Failed"
                 binding.btnStartStretch.isEnabled = false
                 binding.tvSkipStretch.isEnabled = false
                 "❌ MISSION FAILED (Time Limit)"
             }
             StretchMotionDetector.MissionState.SKIPPED -> {
+                binding.btnStartStretch.text = "Mission Skipped"
                 binding.btnStartStretch.isEnabled = false
                 binding.tvSkipStretch.isEnabled = false
                 "⏭ MISSION SKIPPED"
